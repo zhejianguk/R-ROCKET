@@ -25,7 +25,7 @@ class GHT_FILTERS_PRFS_IO (params: GHT_FILTERS_PRFS_Params) extends Bundle {
   val ght_ft_inst_in                            = Input(Vec(params.core_width, UInt(32.W)))
   val ght_ft_pc_in                              = Input(Vec(params.core_width, UInt(32.W)))
   val ght_ft_newcommit_in                       = Input(Vec(params.core_width, Bool()))
-  val ght_ft_alu_in                             = Input(Vec(params.core_width, UInt(params.xlen.W)))
+  val ght_ft_alu_in                             = Input(Vec(params.core_width, UInt((2*params.xlen).W)))
   val ght_ft_is_rvc_in                          = Input(Vec(params.core_width, UInt(1.W)))
 
   val ght_ft_inst_index                         = Output(UInt(5.W))

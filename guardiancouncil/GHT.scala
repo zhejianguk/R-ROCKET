@@ -33,7 +33,7 @@ class GHT_IO (params: GHTParams) extends Bundle {
   val ght_inst_in                               = Input(Vec(params.core_width, UInt(32.W)))
   val ght_pcaddr_in                             = Input(Vec(params.core_width, UInt(params.width_core_pc.W)))
   val new_commit                                = Input(Vec(params.core_width, Bool()))
-  val ght_alu_in                                = Input(Vec(params.core_width, UInt(params.width_data.W)))
+  val ght_alu_in                                = Input(Vec(params.core_width, UInt((2*params.width_data).W)))
   val ght_prfs_rd                               = Input(Vec(params.core_width, UInt(params.width_data.W)))
   val ght_is_rvc_in                             = Input(Vec(params.core_width, UInt(1.W)))
 
@@ -70,7 +70,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   //==========================================================
   // Filters
   val new_commit_ft                              = WireInit(VecInit(Seq.fill(params.core_width)(0.U(1.W))))
-  val ght_alu_in_ft                              = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.width_data.W))))
+  val ght_alu_in_ft                              = WireInit(VecInit(Seq.fill(params.core_width)(0.U((2*params.width_data).W))))
   val ght_inst_in_ft                             = WireInit(VecInit(Seq.fill(params.core_width)(0.U(32.W))))
   val ght_pcaddr_in_ft                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.width_data.W))))
   val ght_prfs_rd_ft                             = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.width_data.W))))

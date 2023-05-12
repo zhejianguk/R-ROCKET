@@ -23,7 +23,7 @@ class GHT_FILTER_PRFS_IO (params: GHT_FILTER_PRFS_Params) extends Bundle {
   val ght_ft_inst_in                            = Input(UInt(32.W))
   val ght_ft_pc_in                              = Input(UInt(32.W))
   val ght_ft_newcommit_in                       = Input(Bool())
-  val ght_ft_alu_in                             = Input(UInt(params.xlen.W))
+  val ght_ft_alu_in                             = Input(UInt((2*params.xlen).W))
   val ght_ft_is_rvc_in                          = Input(UInt(1.W))
   val ght_ft_inst_index                         = Output(UInt(5.W))
   val packet_out                                = Output(UInt((params.packet_size).W))
@@ -58,6 +58,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   val func_reg                                  = RegInit(0.U(3.W))
   val opcode_reg                                = RegInit(0.U(7.W))
   val dp_ldst_reg                               = RegInit(0.U(params.xlen.W))
+  val dp_ldst_data                              = RegInit(0.U(params.xlen.W))
   val dp_jump_wire                              = WireInit(0.U(params.xlen.W))
   val pc_reg                                    = RegInit(0.U(32.W))
   val inst_ret                                  = ((inst_reg(6,0) === 0x67.U) && (inst_reg(11,7) === 0x0.U) && (inst_reg(19,15) === 0x01.U))
@@ -73,7 +74,8 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   inst_reg                                     := inst
   func_reg                                     := func
   opcode_reg                                   := opcode
-  dp_ldst_reg                                  := io.ght_ft_alu_in
+  dp_ldst_data                                 := io.ght_ft_alu_in(127,64)
+  dp_ldst_reg                                  := io.ght_ft_alu_in(63,0)
   dp_jump_wire                                 := Mux(inst_ret|inst_ret_rvc, dp_ldst_reg, io.ght_prfs_rd)
   pc_reg                                       := pc
 
@@ -162,8 +164,8 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
 
   io.packet_out                                := MuxCase(0.U, 
                                                     Array((dp_sel_reg === 0.U) -> 0.U,
-                                                          (dp_sel_reg === 2.U) -> Cat(pc_reg_delay, inst_reg_delay, dp_ldst_reg),
-                                                          (dp_sel_reg === 3.U) -> Cat(pc_reg_delay, inst_reg_delay, dp_ldst_reg),
+                                                          (dp_sel_reg === 2.U) -> Cat(dp_ldst_data, dp_ldst_reg),
+                                                          (dp_sel_reg === 3.U) -> Cat(dp_ldst_data, dp_ldst_reg),
                                                           (dp_sel_reg === 1.U) -> Cat(pc_reg_delay, inst_reg_delay, Cat(dp_jump_wire(61,0), jump_type))
                                                           )
                                                           )
