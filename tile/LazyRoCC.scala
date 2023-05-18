@@ -46,7 +46,7 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val interrupt = Output(Bool())
   val exception = Input(Bool())
   //===== GuardianCouncil Function: Start ====//
-  val ghe_packet_in = Input(UInt(128.W))
+  val ghe_packet_in = Input(UInt(136.W))
   val ghe_status_in = Input(UInt(32.W))
   val bigcore_comp  = Input(UInt(3.W))
   val ghe_event_out = Output(UInt(5.W))
@@ -56,7 +56,7 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val ght_cfg_valid = Output(UInt(1.W))
   val debug_bp_reset = Output(UInt(1.W))
 
-  val agg_packet_out = Output(UInt(128.W))
+  val agg_packet_out = Output(UInt(136.W))
   val agg_buffer_full = Input(UInt(1.W))
   val agg_core_status = Output(UInt(2.W))
   val ght_sch_na = Output(UInt(1.W))
@@ -75,6 +75,9 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val debug_bp_checker = Input(UInt(64.W))
   val debug_bp_cdc = Input(UInt(64.W))
   val debug_bp_filter = Input(UInt(64.W))
+
+  /* R Features */
+  val snapshot_out = Output(UInt(1.W))
   //===== GuardianCouncil Function: End   ====//
 }
 
@@ -143,6 +146,9 @@ trait HasLazyRoCCModule extends CanHavePTWModule
       rocc.module.io.ght_buffer_status := cmdRouter.io.ght_buffer_status
       cmdRouter.io.ght_sch_dorefresh_in := rocc.module.io.ght_sch_dorefresh
       cmdRouter.io.if_correct_process_in := rocc.module.io.if_correct_process
+
+      /* R Features */
+      cmdRouter.io.snapshot_in := rocc.module.io.snapshot_out
       //===== GuardianCouncil Function: End   ====//
     }
 
@@ -456,7 +462,7 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val out = Vec(opcodes.size, Decoupled(new RoCCCommand))
     val busy = Output(Bool())
     //===== GuardianCouncil Function: Start ====//
-    val ghe_packet_in = Input(UInt(128.W))
+    val ghe_packet_in = Input(UInt(136.W))
     val ghe_status_in = Input(UInt(32.W))
     val bigcore_comp  = Input(UInt(3.W))
     val ghe_event_in = Input(UInt(5.W))
@@ -473,8 +479,8 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val debug_bp_reset = Output(UInt(1.W))
     val debug_bp_reset_in = Input(UInt(1.W))
 
-    val agg_packet_out = Output(UInt(128.W))
-    val agg_packet_in  = Input(UInt(128.W))
+    val agg_packet_out = Output(UInt(136.W))
+    val agg_packet_in  = Input(UInt(136.W))
     val agg_buffer_full = Input(UInt(1.W))
     val agg_core_status_out = Output(UInt(2.W))
     val agg_core_status_in = Input(UInt(2.W))
@@ -489,6 +495,10 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
 
     val if_correct_process_in = Input(UInt(1.W))
     val if_correct_process_out = Output(UInt(1.W))
+
+    /* R Features */
+    val snapshot_out = Output(UInt(1.W))
+    val snapshot_in = Input(UInt(1.W))
     //===== GuardianCouncil Function: End   ====//
   }
 
@@ -515,6 +525,9 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.ght_sch_dorefresh_out := io.ght_sch_dorefresh_in
 
   io.if_correct_process_out := io.if_correct_process_in
+
+  /* R Features */
+  io.snapshot_out := io.snapshot_in
   //===== GuardianCouncil Function: End   ====//
   assert(PopCount(cmdReadys) <= 1.U,
     "Custom opcode matched for more than one accelerator")
@@ -527,7 +540,7 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val out = Vec(opcodes.size, Decoupled(new RoCCCommand))
     val busy = Output(Bool())
     //===== GuardianCouncil Function: Start ====//
-    val ghe_packet_in = Input(UInt(128.W))
+    val ghe_packet_in = Input(UInt(136.W))
     val ghe_status_in = Input(UInt(32.W))
     val bigcore_comp  = Input(UInt(3.W))
     val ghe_event_in = Input(UInt(5.W))
@@ -545,8 +558,8 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val debug_bp_reset_in = Input(UInt(1.W))
     
 
-    val agg_packet_out = Output(UInt(128.W))
-    val agg_packet_in  = Input(UInt(128.W))
+    val agg_packet_out = Output(UInt(136.W))
+    val agg_packet_in  = Input(UInt(136.W))
     val agg_buffer_full = Input(UInt(1.W))
     val agg_core_status_out = Output(UInt(2.W))
     val agg_core_status_in = Input(UInt(2.W))
@@ -572,6 +585,10 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val debug_bp_checker = Input(UInt(64.W))
     val debug_bp_cdc = Input(UInt(64.W))
     val debug_bp_filter = Input(UInt(64.W))
+
+    /* R Features */
+    val snapshot_out = Output(UInt(1.W))
+    val snapshot_in = Input(UInt(1.W))
     //===== GuardianCouncil Function: End   ====//
   }
 
@@ -597,6 +614,9 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.ght_sch_na_out := io.ght_sch_na_in
   io.ght_sch_dorefresh_out := io.ght_sch_dorefresh_in
   io.if_correct_process_out := io.if_correct_process_in
+
+  /* R Features */
+  io.snapshot_out := io.snapshot_in
   //===== GuardianCouncil Function: End   ====//
   assert(PopCount(cmdReadys) <= 1.U,
     "Custom opcode matched for more than one accelerator")

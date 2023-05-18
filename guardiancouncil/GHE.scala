@@ -13,6 +13,7 @@ class GHE(opcodes: OpcodeSet)(implicit p: Parameters) extends LazyRoCC(opcodes) 
 
 class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer)
     with HasCoreParameters {
+    val gh_packet_width         = 2*xLen + 8
     val cmd                     = io.cmd
     val funct                   = cmd.bits.inst.funct
     val rs2                     = cmd.bits.inst.rs2
@@ -28,16 +29,16 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val rd_val                  = WireInit(0.U(xLen.W))
 
     // Communication channel
-    // Widith: xLen*2
+    // Widith: gh_packet_width
     // Depth: 32
-    val u_channel               = Module (new GH_FIFO(FIFOParams ((2*xLen), 32))) 
+    val u_channel               = Module (new GH_FIFO(FIFOParams (gh_packet_width, 32))) 
 
 
     // Internal signals
     val channel_enq_valid       = WireInit(false.B)
-    val channel_enq_data        = WireInit(0.U((2*xLen).W))
+    val channel_enq_data        = WireInit(0.U(gh_packet_width.W))
     val channel_deq_ready       = WireInit(false.B)
-    val channel_deq_data        = WireInit(0.U((2*xLen).W))
+    val channel_deq_data        = WireInit(0.U(gh_packet_width.W))
     val channel_empty           = WireInit(true.B)
     val channel_full            = WireInit(false.B)
     val channel_nearfull        = WireInit(false.B)
@@ -98,8 +99,10 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val doDebug_bp_cdc          = (cmd.fire && (funct === 0x1e.U))
     val doDebug_bp_filter       = (cmd.fire && (funct === 0x1f.U))
     val doDebug_Reset_bp        = (cmd.fire && (funct === 0x2d.U))
+    /* R Features */
+    val doSnapshot              = (cmd.fire && (funct === 0x70.U))
 
-    val ghe_packet_in           = RegInit(0x0.U((2*xLen).W))
+    val ghe_packet_in           = RegInit(0x0.U(gh_packet_width.W))
     ghe_packet_in              := io.ghe_packet_in
     val doPush                  = (ghe_packet_in =/= 0.U) && !channel_full
     val doHAPull                = WireInit(0.U(1.W))  
@@ -274,4 +277,8 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     u_pmc.io.msgq_data        := channel_deq_data(63,0)
     doHAPull                  := u_pmc.io.msgq_pop
     ha_rslt                   := u_pmc.io.ghe_hapmc_rslt
+
+
+    /* R Features */
+    io.snapshot_out           := doSnapshot
 }

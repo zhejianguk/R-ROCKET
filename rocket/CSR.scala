@@ -286,6 +286,11 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle
   val mcontext = Output(UInt(coreParams.mcontextWidth.W))
   val scontext = Output(UInt(coreParams.scontextWidth.W))
 
+  //===== GuardianCouncil Function: Start ====//
+  /* R Features */
+  val fcsr_read = Bits(OUTPUT, 8)
+  //===== GuardianCouncil Function: End ====//
+
   val vector = usingVector.option(new Bundle {
     val vconfig = new VConfig().asOutput
     val vstart = UInt(maxVLMax.log2.W).asOutput
@@ -1564,4 +1569,9 @@ class CSRFile(
   def isaStringToMask(s: String) = s.map(x => 1 << (x - 'A')).foldLeft(0)(_|_)
   def formFS(fs: UInt) = if (coreParams.haveFSDirty) fs else Fill(2, fs.orR)
   def formVS(vs: UInt) = if (usingVector) vs else 0.U
+
+  //===== GuardianCouncil Function: Start ====//
+  /* R Features */
+  io.fcsr_read := read_fcsr
+  //===== GuardianCouncil Function: End ====//
 }

@@ -43,6 +43,12 @@ class GHT_FILTERS_PRFS_IO (params: GHT_FILTERS_PRFS_Params) extends Bundle {
 
   val ght_filters_empty                         = Output(UInt(1.W))
   val debug_filter_width                        = Input(UInt(4.W))
+
+  /* R Features */
+  val ght_filters_ready                         = Output(UInt(1.W))
+  val core_r_arfs                               = Input(Vec(params.core_width, UInt(params.packet_size.W)))
+  val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(5.W)))
+  val rsu_merging                               = Input(UInt(1.W))
 }
 
 
@@ -111,8 +117,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   for (i <- 0 to params.core_width - 1) {
     new_packet(i)                              := Mux(filter_packet(i) =/= 0.U, 1.U, 0.U)                                             
     buffer_enq_data(i)                         := Mux(((filter_inst_index(i) =/= 0.U) && (filter_packet(i) =/= 0.U)),  
-                                                    Cat(filter_inst_index(i), filter_packet(i)),
-                                                    0.U)
+                                                    Cat(filter_inst_index(i), filter_packet(i)), 0.U)
   }
   doPush                                       := new_packet.reduce(_|_)
   buffer_enq_valid                             := Mux(doPush === 1.U, true.B, false.B)
@@ -142,6 +147,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   val t_buffer_packet                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
 
   val load_t_buffer                             = WireInit(0.U(1.W))
+  /* FIreGuard only
   for (i <- 0 to params.core_width - 1) {
     t_buffer(i)                                := Mux(load_t_buffer === 1.U, buffer_packet(i), t_buffer(i))
     t_inst_type(i)                             := Mux(load_t_buffer === 1.U, buffer_inst_type(i), t_inst_type(i))
@@ -150,6 +156,33 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     t_buffer_packet(i)                         := t_buffer(i)
   }
   buffer_deq_valid                             := load_t_buffer
+  */ 
+
+  for (i <- 0 to params.core_width - 1) {
+    t_buffer(i)                                := MuxCase(t_buffer(i),
+                                                      Array(((load_t_buffer === 1.U) && (io.rsu_merging === 0.U)) -> buffer_packet(i),
+                                                            ((load_t_buffer === 1.U) && (io.rsu_merging === 1.U)) -> io.core_r_arfs(i)
+                                                          )
+                                                          )
+
+    t_inst_type(i)                             := MuxCase(t_inst_type(i),
+                                                      Array(((load_t_buffer === 1.U) && (io.rsu_merging === 0.U)) -> buffer_inst_type(i),
+                                                            ((load_t_buffer === 1.U) && (io.rsu_merging === 1.U)) -> io.core_r_arfs_index(i)
+                                                          )
+                                                          )
+                                                          
+    is_valid_t_buffer(i)                       := (t_buffer(i) =/= 0.U)
+    t_buffer_inst_type(i)                      := t_inst_type(i)
+    t_buffer_packet(i)                         := t_buffer(i)
+  }
+
+  buffer_deq_valid                             := MuxCase(0.U,
+                                                      Array(((load_t_buffer === 1.U) && (io.rsu_merging === 0.U)) -> 1.U,
+                                                            ((load_t_buffer === 1.U) && (io.rsu_merging === 1.U)) -> 0.U
+                                                          )
+                                                          )
+
+
 
   // Simulating 1/2-width event filter
   /* Additional logic for filtering delay */
@@ -198,8 +231,8 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     is (fsm_reset){
       packet                                   := 0.U
       inst_type                                := 0.U
-      load_t_buffer                            := Mux((!buffer_empty(0)), 1.U, 0.U)
-      fsm_state                                := Mux((!buffer_empty(0)), fsm_reset_nxt_state, fsm_reset)
+      load_t_buffer                            := Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), 1.U, 0.U)
+      fsm_state                                := Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), fsm_reset_nxt_state, fsm_reset)
     }
 
     is (fsm_send_first){
@@ -263,11 +296,12 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   // These are used for 4-width Boom
   // There are some work is required to make them generic
   fsm_reset_nxt_state                          := MuxCase(fsm_reset, 
-                                                    Array((is_valid_packet(0) =/= 0.U)  -> fsm_send_first,
-                                                          ((is_valid_packet(0) === 0.U) && (is_valid_packet(1) =/= 0.U))  -> fsm_send_second,
-                                                          ((is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) =/= 0.U))  -> fsm_send_third,
-                                                          ((is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) === 0.U) && (is_valid_packet(3) =/= 0.U))  -> fsm_send_fourth,
-                                                          ((is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) === 0.U) && (is_valid_packet(3) === 0.U))  -> fsm_reset
+                                                    Array((io.rsu_merging === 1.U) -> fsm_send_first,
+                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) =/= 0.U))  -> fsm_send_first,
+                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) =/= 0.U))  -> fsm_send_second,
+                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) =/= 0.U))  -> fsm_send_third,
+                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) === 0.U) && (is_valid_packet(3) =/= 0.U))  -> fsm_send_fourth,
+                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) === 0.U) && (is_valid_packet(3) === 0.U))  -> fsm_reset
                                                           )
                                                           )
 
@@ -292,12 +326,12 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
                                                           )
                                                           )
 
-  fsm_fourth_nxt_state                        := Mux((!buffer_empty(0)), fsm_reset_nxt_state, fsm_reset)
+  fsm_fourth_nxt_state                        := Mux(((io.rsu_merging === 1.U) || (!buffer_empty(0))), fsm_reset_nxt_state, fsm_reset)
 
-  load_t_buffer_first_state                   := Mux((is_valid_t_buffer(1) === 0.U) && (is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U) && (!buffer_empty(0)), 1.U, 0.U)
-  load_t_buffer_second_state                  := Mux((is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U) && (!buffer_empty(0)), 1.U, 0.U)
-  load_t_buffer_third_state                   := Mux((is_valid_t_buffer(3) === 0.U) && (!buffer_empty(0)), 1.U, 0.U) 
-  load_t_buffer_fourth_state                  := Mux((!buffer_empty(0)), 1.U, 0.U)
+  load_t_buffer_first_state                   := Mux((is_valid_t_buffer(1) === 0.U) && (is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U) && (!buffer_empty(0) || (io.rsu_merging === 1.U)), 1.U, 0.U)
+  load_t_buffer_second_state                  := Mux((is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U) && (!buffer_empty(0) || (io.rsu_merging === 1.U)), 1.U, 0.U)
+  load_t_buffer_third_state                   := Mux((is_valid_t_buffer(3) === 0.U) && (!buffer_empty(0) || (io.rsu_merging === 1.U)), 1.U, 0.U) 
+  load_t_buffer_fourth_state                  := Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), 1.U, 0.U)
 
   // Outputs
   io.ght_ft_inst_index                        := inst_type
@@ -305,4 +339,12 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   io.core_hang_up                             := core_hang_up | filter_stall
   io.ght_buffer_status                        := Cat(buffer_full(params.core_width-1), buffer_empty.reduce(_&_))
   io.ght_filters_empty                        := buffer_empty.reduce(_&_)
+
+  /* R Features */
+  io.ght_filters_ready                        := MuxCase(0.U,
+                                                    Array(((load_t_buffer === 1.U) && (io.rsu_merging === 0.U)) -> 0.U,
+                                                          ((load_t_buffer === 1.U) && (io.rsu_merging === 1.U)) -> 1.U
+                                                         )
+                                                         )
+
 }

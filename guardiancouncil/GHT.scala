@@ -54,6 +54,12 @@ class GHT_IO (params: GHTParams) extends Bundle {
   val debug_bp_checker                          = Output(UInt(64.W))
   val debug_bp_cdc                              = Output(UInt(64.W))
   val debug_bp_filter                           = Output(UInt(64.W))
+
+  /* R Features */
+  val ght_filters_ready                         = Output(UInt(1.W))
+  val core_r_arfs                               = Input(Vec(params.core_width, UInt(params.packet_size.W)))
+  val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(5.W)))
+  val rsu_merging                               = Input(UInt(1.W))
 }
 
 trait HasGHT_IO extends BaseModule {
@@ -144,6 +150,10 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   }
   u_ght_filters.io.debug_filter_width           := debug_filter_width_reg
 
+  /* R Features */
+  u_ght_filters.io.core_r_arfs                  := io.core_r_arfs
+  u_ght_filters.io.core_r_arfs_index            := io.core_r_arfs_index
+  u_ght_filters.io.rsu_merging                  := io.rsu_merging
  //==========================================================
   // Mapper
   //==========================================================
@@ -286,4 +296,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   io.debug_bp_checker                           := debug_bp_checker
   io.debug_bp_cdc                               := debug_bp_cdc
   io.debug_bp_filter                            := debug_bp_filter
+
+  /* R Features */
+  io.ght_filters_ready                           := u_ght_filters.io.ght_filters_ready
 }
