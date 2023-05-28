@@ -146,6 +146,14 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val ght_cfg_bridge = Module(new GH_Bridge(GH_BridgeParams(32)))
   val ght_cfg_v_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
 
+  /* R Features */
+  val packet_in = outer.ghe_packet_in_SKNode.bundle
+  val packet_index = packet_in (140, 136)
+  val packet_in_core = Mux(packet_index(4,2) =/= 0.U, packet_in, 0.U)
+  val packet_in_ghe = Mux(((packet_index(4,2) === 0.U) && (packet_index(1,0) === 0.U)), packet_in, 0.U)
+  val arf_copy_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
+  
+
   //===== GuardianCouncil Function: Start ====//
   if (outer.tileParams.hartId == 0) {
     println("#### Jessica #### Generating GHT for the big core, HartID: ", outer.rocketParams.hartId, "...!!!")
@@ -166,13 +174,19 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     ght.io.core_na := outer.sch_na_inSKNode.bundle
     ght.io.new_commit := core.io.new_commit
     outer.ghm_agg_core_id_out_SRNode.bundle := ght.io.ghm_agg_core_id
+    core.io.arf_copy_in := 0.U
   } else
   { // Other cores:
     // For other cores: no GHT is required, and hence tied-off
     core.io.clk_enable_gh := 1.U // the core is never gated
     outer.ght_packet_out_SRNode.bundle := 0.U
     outer.ght_packet_dest_SRNode.bundle := 0.U
-    outer.ghe_event_out_SRNode.bundle := ghe_bridge.io.out
+    val zeros_4bits = Wire(UInt(width=4))
+    zeros_4bits := 0.U
+
+    outer.ghe_event_out_SRNode.bundle := ghe_bridge.io.out | Cat(core.io.packet_cdc_ready, zeros_4bits)
+    core.io.packet_arfs := packet_in_core
+    core.io.arf_copy_in := arf_copy_bridge.io.out
   }
     
   //===== GuardianCouncil Function: End ====//
@@ -223,7 +237,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     core.io.rocc.busy <> (cmdRouter.get.io.busy || outer.roccs.map(_.module.io.busy).reduce(_ || _))
     core.io.rocc.interrupt := outer.roccs.map(_.module.io.interrupt).reduce(_ || _)
     //===== GuardianCouncil Function: Start ====//
-    cmdRouter.get.io.ghe_packet_in := ((outer.ghe_packet_in_SKNode.bundle) | (outer.agg_packet_in_SKNode.bundle))
+    cmdRouter.get.io.ghe_packet_in := ( packet_in_ghe | (outer.agg_packet_in_SKNode.bundle))
     cmdRouter.get.io.ghe_status_in := outer.ghe_status_in_SKNode.bundle
     ghe_bridge.io.in := cmdRouter.get.io.ghe_event_out
     ght_bridge.io.in := cmdRouter.get.io.ght_mask_out
@@ -240,7 +254,12 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     cmdRouter.get.io.ght_buffer_status := 0.U
     // For big_core GHT
     cmdRouter.get.io.bigcore_comp := outer.bigcore_comp_in_SKNode.bundle
-    outer.ght_sch_dorefresh_SRNode.bundle := cmdRouter.get.io.ght_sch_dorefresh_out                           
+    outer.ght_sch_dorefresh_SRNode.bundle := cmdRouter.get.io.ght_sch_dorefresh_out    
+
+    arf_copy_bridge.io.in := cmdRouter.get.io.arf_copy_out
+
+    /* R Features */
+    cmdRouter.get.io.rsu_status_in := core.io.rsu_status
     //===== GuardianCouncil Function: End   ====//
   }
 

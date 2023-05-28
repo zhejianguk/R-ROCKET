@@ -203,6 +203,11 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val sboard_clr = Bool(OUTPUT)
   val sboard_clra = UInt(OUTPUT, 5)
 
+  /* R Features */
+  val r_farf_bits = Input(UInt(64.W))
+  val r_farf_idx = Input(UInt(8.W))
+  val r_farf_valid = Input(UInt(1.W))
+
   val keep_clock_enabled = Bool(INPUT)
 }
 
@@ -800,6 +805,11 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     frfWriteBundle(0).wrdst := load_wb_tag
     frfWriteBundle(0).wrenf := true.B
     frfWriteBundle(0).wrdata := ieee(wdata)
+  } .elsewhen (io.r_farf_valid === 1.U) {
+    val r_farf_wbtype = Wire(0.U(2.W))
+    r_farf_wbtype := 1.U
+    val r_farf_wb = recode(io.r_farf_bits, r_farf_wbtype)
+    regfile(io.r_farf_idx) := r_farf_wb
   }
 
   val ex_rs = ex_ra.map(a => regfile(a))

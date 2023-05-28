@@ -160,6 +160,11 @@ trait HasCoreIO extends HasTileParameters {
     val clk_enable_gh = Bool().asInput
     val alu_2cycle_delay = UInt(p(XLen).W).asOutput
     val csr_rw_wdata = UInt(p(XLen).W).asOutput
+
+    val packet_arfs = UInt(141.W).asInput
+    val packet_cdc_ready = UInt(1.W).asOutput
+    val arf_copy_in = UInt(1.W).asInput
+    val rsu_status = UInt(2.W).asOutput
     //===== GuardianCouncil Function: End ====//
   }
 }

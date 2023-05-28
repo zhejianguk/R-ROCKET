@@ -335,7 +335,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
 
   // Outputs
   io.ght_ft_inst_index                        := inst_type
-  io.packet_out                               := packet
+  io.packet_out                               := Cat(inst_type(4,0), packet(135,0)) // Added inst_type for checker cores
   io.core_hang_up                             := core_hang_up | filter_stall
   io.ght_buffer_status                        := Cat(buffer_full(params.core_width-1), buffer_empty.reduce(_&_))
   io.ght_filters_empty                        := buffer_empty.reduce(_&_)

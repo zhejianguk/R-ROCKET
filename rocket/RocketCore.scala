@@ -14,6 +14,11 @@ import freechips.rocketchip.util.property
 import freechips.rocketchip.scie._
 import scala.collection.mutable.ArrayBuffer
 
+//===== GuardianCouncil Function: Start ====//
+import freechips.rocketchip.r._
+//===== GuardianCouncil Function: End   ====//
+
+
 case class RocketCoreParams(
   bootFreqHz: BigInt = 0,
   useVM: Boolean = true,
@@ -300,6 +305,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
    io.inst := wb_reg_inst
    io.new_commit := csr.io.trace(0).valid && !csr.io.trace(0).exception
    io.csr_rw_wdata := csr.io.rw.wdata
+
+   val rsu_pc = Reg(UInt(width=40))
   //===== GuardianCouncil Function: End   ====//
 
   val id_scie_decoder = if (!rocketParams.useSCIE) Wire(new SCIEDecoderInterface) else {
@@ -586,7 +593,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     mem_reg_mem_size := ex_reg_mem_size
     mem_reg_hls_or_dv := io.dmem.req.bits.dv
     mem_reg_pc := ex_reg_pc
-    mem_reg_wdata := Mux(ex_scie_unpipelined, ex_scie_unpipelined_wdata, alu.io.out)
+    // mem_reg_wdata := Mux(ex_scie_unpipelined, ex_scie_unpipelined_wdata, alu.io.out)
+    mem_reg_wdata := Mux((ex_ctrl.jalr && ex_reg_inst(12) === 1.U), rsu_pc, Mux(ex_scie_unpipelined, ex_scie_unpipelined_wdata, alu.io.out))
     mem_br_taken := alu.io.cmp_out
 
     when (ex_ctrl.rxs2 && (ex_ctrl.mem || ex_ctrl.rocc || ex_sfence)) {
@@ -733,7 +741,35 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
                  Mux(wb_ctrl.csr =/= CSR.N, csr.io.rw.rdata,
                  Mux(wb_ctrl.mul, mul.map(_.io.resp.bits.data).getOrElse(wb_reg_wdata),
                  wb_reg_wdata))))
-  when (rf_wen) { rf.write(rf_waddr, rf_wdata) }
+
+  //===== GuardianCouncil Function: Start ====//
+  /* R Features */
+  val rsu_slave = Module(new R_RSUSL(R_RSUSLParams(xLen, 32)))
+  io.packet_cdc_ready := rsu_slave.io.cdc_ready
+  rsu_slave.io.arfs_pidx := io.packet_arfs(140, 136)
+  rsu_slave.io.arfs_index := io.packet_arfs(135, 128)
+  rsu_slave.io.arfs_merge := io.packet_arfs(127, 0)
+  val rf_wen_rsu = Wire(0.U(1.W))
+  rf_wen_rsu := rsu_slave.io.arfs_valid_out
+  rsu_pc := rsu_slave.io.pcarf_out
+  io.rsu_status := rsu_slave.io.rsu_status
+
+  csr.io.pfarf_valid := rsu_slave.io.pfarf_valid_out
+  csr.io.fcsr_in := rsu_slave.io.fcsr_out
+
+  // Added one cycle delay to ensure the RCU being operated at commited stage 
+  // Avodiing uninteded reg write after arf_copy
+  val arf_copy_reg = Reg(0.U(1.W))
+  arf_copy_reg := io.arf_copy_in
+  rsu_slave.io.copy_arfs := arf_copy_reg
+
+
+  when (rf_wen) { 
+    rf.write(rf_waddr, rf_wdata) 
+  } .elsewhen (rf_wen_rsu === 1.U) {
+    rf.write(rsu_slave.io.arfs_idx_out, rsu_slave.io.arfs_out)
+  }
+  //===== GuardianCouncil Function: End   ====//
 
   // hook up control/status regfile
   csr.io.ungated_clock := clock
@@ -846,7 +882,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     // Original design:
     // id_ex_hazard || id_mem_hazard || id_wb_hazard || id_sboard_hazard ||
     // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore RoCC does not cause a hazzard
-    id_ex_hazard || id_mem_hazard || (id_wb_hazard && !wb_ctrl.rocc) || id_sboard_hazard ||
+    (rsu_slave.io.core_hang_up === 1.U) || id_ex_hazard || id_mem_hazard || (id_wb_hazard && !wb_ctrl.rocc) || id_sboard_hazard ||
     //===== GuardianCouncil Function: End   ====//
     csr.io.singleStep && (ex_reg_valid || mem_reg_valid || wb_reg_valid) ||
     id_csr_en && csr.io.decode(0).fp_csr && !io.fpu.fcsr_rdy ||
@@ -908,11 +944,16 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.killm := killm_common
   io.fpu.inst := id_inst(0)
   io.fpu.fromint_data := ex_rs(0)
+  /* R Features */
   io.fpu.dmem_resp_val := dmem_resp_valid && dmem_resp_fpu
   io.fpu.dmem_resp_data := io.dmem.resp.bits.data_word_bypass
   io.fpu.dmem_resp_type := io.dmem.resp.bits.size
   io.fpu.dmem_resp_tag := dmem_resp_waddr
   io.fpu.keep_clock_enabled := io.ptw.customCSRs.disableCoreClockGate
+  
+  io.fpu.r_farf_bits := rsu_slave.io.farfs_out
+  io.fpu.r_farf_idx := rsu_slave.io.arfs_idx_out
+  io.fpu.r_farf_valid := rsu_slave.io.arfs_valid_out
 
   io.dmem.req.valid     := ex_reg_valid && ex_ctrl.mem
   val ex_dcache_tag = Cat(ex_waddr, ex_ctrl.fp)

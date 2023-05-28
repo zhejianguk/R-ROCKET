@@ -289,6 +289,8 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
   val fcsr_read = Bits(OUTPUT, 8)
+  val pfarf_valid = Bits(INPUT, 1)
+  val fcsr_in = Bits(INPUT, 8)
   //===== GuardianCouncil Function: End ====//
 
   val vector = usingVector.option(new Bundle {
@@ -1240,7 +1242,10 @@ class CSRFile(
     if (usingFPU) {
       when (decoded_addr(CSRs.fflags)) { set_fs_dirty := true; reg_fflags := wdata }
       when (decoded_addr(CSRs.frm))    { set_fs_dirty := true; reg_frm := wdata }
-      when (decoded_addr(CSRs.fcsr)) {
+      when (io.pfarf_valid === 1.U) {
+        reg_fflags := io.fcsr_in(4,0)
+        reg_frm := io.fcsr_in(7,5)
+      } .elsewhen (decoded_addr(CSRs.fcsr)) {
         set_fs_dirty := true
         reg_fflags := wdata
         reg_frm := wdata >> reg_fflags.getWidth
