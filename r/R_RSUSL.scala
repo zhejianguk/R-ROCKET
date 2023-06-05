@@ -20,6 +20,7 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val pfarf_valid_out = Output(UInt(1.W))
 
   val core_hang_up = Output(UInt(1.W))
+  val checker_mode = Output(UInt(1.W))
 
   val arfs_merge = Input(UInt((params.xLen*2).W))
   val arfs_index = Input(UInt(8.W))
@@ -36,6 +37,9 @@ trait HasR_RSUSLIO extends BaseModule {
 }
 
 class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
+  // Revisit: move it to the instruction counter
+  val checker_mode                                = RegInit(0.U(1.W))
+
   val rsu_status                                  = RegInit(0.U(2.W))
   val arfs_ss                                     = Reg(Vec(params.numARFS, UInt(params.xLen.W)))
   val farfs_ss                                    = Reg(Vec(params.numARFS, UInt(params.xLen.W)))
@@ -81,6 +85,10 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
     apply_counter                                := apply_counter
   }
 
+  // Revisit
+  checker_mode                                   := Mux(apply_counter === 0x20.U, 1.U, checker_mode)
+  io.checker_mode                                := checker_mode
+
   io.arfs_out                                    := Mux(((apply_snapshot === 1.U) && (apply_counter =/= 0x20.U)), arfs_ss(apply_counter), 0.U)
   io.farfs_out                                   := Mux(((apply_snapshot === 1.U) && (apply_counter =/= 0x20.U)), farfs_ss(apply_counter), 0.U)
   io.arfs_idx_out                                := Mux(((apply_snapshot === 1.U) && (apply_counter =/= 0x20.U)), apply_counter, 0.U)
@@ -91,7 +99,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   io.pfarf_valid_out                             := Mux(((apply_snapshot === 1.U) && (apply_counter === 0x20.U)), 1.U, 0.U)
 
   io.cdc_ready                                   := packet_valid
-  io.core_hang_up                                := Mux(packet_index === 0x20.U, 1.U, apply_snapshot)
+  io.core_hang_up                                := apply_snapshot
 
   io.rsu_status                                  := rsu_status
 }

@@ -103,3 +103,75 @@ class GH_FIFO(val params: FIFOParams) extends Module with HasFIFOIO {
   io.debug_fcounter            := debug_fcounter
   io.debug_fdcounter           := debug_fdcounter
 }
+
+
+class GH_MemFIFO(val params: FIFOParams) extends Module with HasFIFOIO {
+  def counter(depth: Int, incr: Bool): (UInt, UInt) = {
+    val cntReg                  = RegInit(0.U(log2Ceil(depth).W))
+    val nextVal                 = Mux(cntReg === (depth-1).U, 0.U, cntReg + 1.U)
+    when (incr) {
+      cntReg                   := nextVal
+    }
+    (cntReg, nextVal)
+  }
+
+  val mem                       = SyncReadMem(params.depth, UInt(params.width.W))
+  val incrRead                  = WireInit(false.B)
+  val incrWrite                 = WireInit(false.B)
+
+  val (readPtr, nextRead)       = counter(params.depth, incrRead)
+  val (writePtr, nextWrite)     = counter(params.depth, incrWrite)
+
+  val emptyReg                  = RegInit(true.B)
+  val fullReg                   = RegInit(false.B)
+  val num_contentReg            = RegInit(0.U(log2Ceil(params.depth).W))
+  val debug_fcounter            = RegInit(0.U(64.W))
+  val debug_fdcounter           = RegInit(0.U(64.W))
+
+  when ((io.enq_valid && !fullReg) && (io.deq_ready && !emptyReg)) {
+    mem.write                     (writePtr, io.enq_bits)
+    emptyReg                   := false.B
+    fullReg                    := false.B
+    incrWrite                  := true.B
+    incrRead                   := true.B
+    num_contentReg             := num_contentReg
+    debug_fcounter             := debug_fcounter + 1.U
+    debug_fdcounter            := debug_fdcounter + 1.U
+  }
+
+  when ((io.enq_valid && !fullReg) && !(io.deq_ready && !emptyReg)){
+    mem.write                     (writePtr, io.enq_bits)
+    emptyReg                   := false.B
+    fullReg                    := nextWrite === readPtr
+    incrWrite                  := true.B
+    num_contentReg             := num_contentReg + 1.U
+    debug_fcounter             := debug_fcounter + 1.U
+  }
+    
+  when (!(io.enq_valid && !fullReg) && (io.deq_ready && !emptyReg)) {
+    emptyReg                   := nextRead === writePtr
+    fullReg                    := false.B
+    incrRead                   := true.B
+    num_contentReg             := num_contentReg - 1.U
+    debug_fdcounter            := debug_fdcounter + 1.U
+  }
+  
+  io.status_fiveslots          := Mux(num_contentReg >= ((params.depth).U - 5.U),
+                                      1.U, 
+                                      0.U)
+
+  io.status_threeslots         := Mux(num_contentReg >= ((params.depth).U - 3.U),
+                                      1.U, 
+                                      0.U)
+  
+  io.status_twoslots           := Mux(num_contentReg >= ((params.depth).U - 2.U),
+                                      1.U, 
+                                      0.U)
+  
+  io.deq_bits                  := mem.read(readPtr, io.deq_ready)
+  io.full                      := fullReg
+  io.empty                     := emptyReg
+  io.num_content               := num_contentReg
+  io.debug_fcounter            := debug_fcounter
+  io.debug_fdcounter           := debug_fdcounter
+}

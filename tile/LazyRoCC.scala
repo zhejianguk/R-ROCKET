@@ -80,6 +80,7 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val snapshot_out = Output(UInt(1.W))
   val arf_copy_out = Output(UInt(1.W))
   val rsu_status_in = Input(UInt(2.W))
+  val s_or_r_out = Output(UInt(1.W))
   //===== GuardianCouncil Function: End   ====//
 }
 
@@ -151,6 +152,7 @@ trait HasLazyRoCCModule extends CanHavePTWModule
 
       /* R Features */
       cmdRouter.io.snapshot_in := rocc.module.io.snapshot_out
+      cmdRouter.io.s_or_r_in := rocc.module.io.s_or_r_out
       cmdRouter.io.arf_copy_in := rocc.module.io.arf_copy_out
       rocc.module.io.rsu_status_in := cmdRouter.io.rsu_status_in
 
@@ -508,6 +510,8 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val arf_copy_out = Output(UInt(1.W))
     val arf_copy_in = Input(UInt(1.W))
     val rsu_status_in = Input(UInt(2.W))
+    val s_or_r_out = Output(UInt(1.W))
+    val s_or_r_in = Input(UInt(1.W))
     //===== GuardianCouncil Function: End   ====//
   }
 
@@ -538,6 +542,7 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   /* R Features */
   io.snapshot_out := io.snapshot_in
   io.arf_copy_out := io.arf_copy_in
+  io.s_or_r_out := io.s_or_r_in
   //===== GuardianCouncil Function: End   ====//
   assert(PopCount(cmdReadys) <= 1.U,
     "Custom opcode matched for more than one accelerator")
@@ -601,6 +606,8 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val snapshot_in = Input(UInt(1.W))
     val arf_copy_out = Output(UInt(1.W))
     val arf_copy_in = Input(UInt(1.W))
+    val s_or_r_out = Output(UInt(1.W))
+    val s_or_r_in = Input(UInt(1.W))
 
     val rsu_status_in = Input(UInt(2.W))
     //===== GuardianCouncil Function: End   ====//
@@ -631,6 +638,7 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
 
   /* R Features */
   io.snapshot_out := io.snapshot_in
+  io.s_or_r_out := io.s_or_r_in
   io.arf_copy_out := io.arf_copy_in
   //===== GuardianCouncil Function: End   ====//
   assert(PopCount(cmdReadys) <= 1.U,

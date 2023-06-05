@@ -13,6 +13,9 @@ class GHE(opcodes: OpcodeSet)(implicit p: Parameters) extends LazyRoCC(opcodes) 
 
 class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer)
     with HasCoreParameters {
+    val s_or_r                  = RegInit(0.U(1.W))    // If the core runs for security or relaibility? 
+                                                       // 0: secuirty; 1: reliability
+
     val gh_packet_width         = 2*xLen + 13
     val cmd                     = io.cmd
     val funct                   = cmd.bits.inst.funct
@@ -56,6 +59,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
 
     // Software Funcs
     val doCheck                 = (cmd.fire && (funct === 0x00.U))
+    val doSorR                  = (cmd.fire && (funct === 0x01.U))
     val doEvent                 = (cmd.fire && ((funct === 0x40.U) || (funct === 0x41.U) || (funct === 0x42.U) || (funct === 0x43.U)))
     val doCheckBigStatus        = (cmd.fire && (funct === 0x07.U))
     val doTop_FirstHalf         = (cmd.fire && (funct === 0x0A.U) && !channel_empty)
@@ -192,6 +196,10 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
       ghe_event_reg            := (funct & 0x0F.U);
     }
 
+    when (doSorR) {
+      s_or_r                   := rs1_val(0)
+    }
+
     when (doInitialised){
       ghe_initialised_reg      := (funct & 0x0F.U);
     }
@@ -287,4 +295,5 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     /* R Features */
     io.snapshot_out           := doSnapshot
     io.arf_copy_out           := doCopy
+    io.s_or_r_out             := s_or_r
 }

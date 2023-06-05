@@ -301,12 +301,29 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val id_csr_flush = id_system_insn || (id_csr_en && !id_csr_ren && csr.io.decode(0).write_flush)
 
   //===== GuardianCouncil Function: Start ====//
-   io.pc := wb_reg_pc
-   io.inst := wb_reg_inst
-   io.new_commit := csr.io.trace(0).valid && !csr.io.trace(0).exception
-   io.csr_rw_wdata := csr.io.rw.wdata
+  io.pc := wb_reg_pc
+  io.inst := wb_reg_inst
+  io.new_commit := csr.io.trace(0).valid && !csr.io.trace(0).exception
+  io.csr_rw_wdata := csr.io.rw.wdata
 
-   val rsu_pc = Reg(UInt(width=40))
+  /* R Features */
+  val rsu_pc = Reg(UInt(width=40))
+  val checker_mode = Reg(UInt(width=1))
+
+  val lsl_req_ready     = Wire(UInt(width=1))
+  val lsl_req_valid     = Wire(UInt(width=1))
+  val lsl_req_addr      = Wire(UInt(width=40))
+  val lsl_req_tag       = Wire(UInt(width=8))
+  val lsl_req_cmd       = Wire(UInt(width=2))
+  val lsl_req_data      = Wire(UInt(width=xLen))
+
+  val lsl_resp_valid    = Wire(UInt(width=1))
+  val lsl_resp_tag      = Wire(UInt(width=8))
+  val lsl_resp_size     = Wire(UInt(width=2))
+  val lsl_resp_data     = Wire(UInt(width=xLen))
+  val lsl_resp_has_data = Wire(UInt(width=1))
+  val lsl_resp_replay   = Wire(UInt(width=1))
+  val lsl_req_size      = Wire(UInt(width=2))
   //===== GuardianCouncil Function: End   ====//
 
   val id_scie_decoder = if (!rocketParams.useSCIE) Wire(new SCIEDecoderInterface) else {
@@ -337,7 +354,9 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val id_fence_pred = id_inst(0)(27,24)
   val id_fence_succ = id_inst(0)(23,20)
   val id_fence_next = id_ctrl.fence || id_ctrl.amo && id_amo_aq
-  val id_mem_busy = !io.dmem.ordered || io.dmem.req.valid
+  /* R Feature --- LSL */
+  val id_mem_busy = Mux(checker_mode === 1.U, lsl_req_valid.asBool, (!io.dmem.ordered || io.dmem.req.valid))
+
   when (!id_mem_busy) { id_reg_fence := false }
   val id_rocc_busy = Bool(usingRoCC) &&
     (io.rocc.busy || ex_reg_valid && ex_ctrl.rocc ||
@@ -381,8 +400,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: Start ====//
   // Enabling data bypass for RoCC commands
   val dcache_bypass_data =
-    if (fastLoadByte) Mux(wb_ctrl.rocc, io.rocc.resp.bits.data, io.dmem.resp.bits.data(xLen-1, 0))
-    else if (fastLoadWord) Mux(wb_ctrl.rocc, io.rocc.resp.bits.data, io.dmem.resp.bits.data_word_bypass(xLen-1, 0))
+    if (fastLoadByte) Mux(wb_ctrl.rocc, io.rocc.resp.bits.data, Mux((checker_mode === 1.U), lsl_resp_data, io.dmem.resp.bits.data(xLen-1, 0)))
+    else if (fastLoadWord) Mux(wb_ctrl.rocc, io.rocc.resp.bits.data, Mux((checker_mode === 1.U), lsl_resp_data, io.dmem.resp.bits.data_word_bypass(xLen-1, 0)))
     else wb_reg_wdata
   //===== GuardianCouncil Function: End ====//
 
@@ -531,9 +550,16 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   // replay inst in ex stage?
   val ex_pc_valid = ex_reg_valid || ex_reg_replay || ex_reg_xcpt_interrupt
-  val wb_dcache_miss = wb_ctrl.mem && !io.dmem.resp.valid
-  val replay_ex_structural = ex_ctrl.mem && !io.dmem.req.ready ||
-                             ex_ctrl.div && !div.io.req.ready
+  val wb_dcache_miss = Mux((checker_mode === 1.U), false.B, wb_ctrl.mem && !io.dmem.resp.valid)
+
+  /* R Feature --- LSL */
+  // val replay_ex_structural = ex_ctrl.mem && !io.dmem.req.ready ||
+  //                            ex_ctrl.div && !div.io.req.ready
+  
+  // In checker mode, the LSL should be always ready, 
+  // The non-ready directly hangs the pipeline
+  val replay_ex_structural = Mux(checker_mode === 1.U, (ex_ctrl.div && !div.io.req.ready), ((ex_ctrl.mem && !io.dmem.req.ready) || (ex_ctrl.div && !div.io.req.ready)))
+
   val replay_ex_load_use = wb_dcache_miss && ex_reg_load_use
   val replay_ex = ex_reg_replay || (ex_reg_valid && (replay_ex_structural || replay_ex_load_use))
   val ctrl_killx = take_pc_mem_wb || replay_ex || !ex_reg_valid
@@ -591,7 +617,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     mem_reg_inst := ex_reg_inst
     mem_reg_raw_inst := ex_reg_raw_inst
     mem_reg_mem_size := ex_reg_mem_size
-    mem_reg_hls_or_dv := io.dmem.req.bits.dv
+    mem_reg_hls_or_dv := Mux(checker_mode === 1.U, 0.U, io.dmem.req.bits.dv)
     mem_reg_pc := ex_reg_pc
     // mem_reg_wdata := Mux(ex_scie_unpipelined, ex_scie_unpipelined_wdata, alu.io.out)
     mem_reg_wdata := Mux((ex_ctrl.jalr && ex_reg_inst(12) === 1.U), rsu_pc, Mux(ex_scie_unpipelined, ex_scie_unpipelined_wdata, alu.io.out))
@@ -626,7 +652,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   )).distinct
   coverExceptions(mem_xcpt, mem_cause, "MEMORY", memCoverCauses)
 
-  val dcache_kill_mem = mem_reg_valid && mem_ctrl.wxd && io.dmem.replay_next // structural hazard on writeback port
+  val dcache_kill_mem = Mux(checker_mode === 1.U, false.B, (mem_reg_valid && mem_ctrl.wxd && io.dmem.replay_next)) // structural hazard on writeback port
   val fpu_kill_mem = mem_reg_valid && mem_ctrl.fp && io.fpu.nack_mem
   val replay_mem  = dcache_kill_mem || mem_reg_replay || fpu_kill_mem
   val killm_common = dcache_kill_mem || take_pc_wb || mem_reg_xcpt || !mem_reg_valid
@@ -660,14 +686,14 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   val (wb_xcpt, wb_cause) = checkExceptions(List(
     (wb_reg_xcpt,  wb_reg_cause),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.pf.st, UInt(Causes.store_page_fault)),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.pf.ld, UInt(Causes.load_page_fault)),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.gf.st, UInt(Causes.store_guest_page_fault)),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.gf.ld, UInt(Causes.load_guest_page_fault)),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.ae.st, UInt(Causes.store_access)),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.ae.ld, UInt(Causes.load_access)),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.ma.st, UInt(Causes.misaligned_store)),
-    (wb_reg_valid && wb_ctrl.mem && io.dmem.s2_xcpt.ma.ld, UInt(Causes.misaligned_load))
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.pf.st)), UInt(Causes.store_page_fault)),
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.pf.ld)), UInt(Causes.load_page_fault)),
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.gf.st)), UInt(Causes.store_guest_page_fault)),
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.gf.ld)), UInt(Causes.load_guest_page_fault)),
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.ae.st)), UInt(Causes.store_access)),
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.ae.ld)), UInt(Causes.load_access)),
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.ma.st)), UInt(Causes.misaligned_store)),
+    (wb_reg_valid && wb_ctrl.mem && (Mux(checker_mode === 1.U, false.B, io.dmem.s2_xcpt.ma.ld)), UInt(Causes.misaligned_load))
   ))
 
   val wbCoverCauses = List(
@@ -695,16 +721,16 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: End   ====//
 
   val wb_set_sboard = wb_ctrl.div || wb_dcache_miss || wb_ctrl.rocc
-  val replay_wb_common = io.dmem.s2_nack || wb_reg_replay
+  val replay_wb_common = Mux(checker_mode === 1.U, false.B, io.dmem.s2_nack) || wb_reg_replay
   val replay_wb = replay_wb_common || replay_wb_rocc
   take_pc_wb := replay_wb || wb_xcpt || csr.io.eret || wb_reg_flush_pipe
 
   // writeback arbitration
-  val dmem_resp_xpu = !io.dmem.resp.bits.tag(0).asBool
-  val dmem_resp_fpu =  io.dmem.resp.bits.tag(0).asBool
-  val dmem_resp_waddr = io.dmem.resp.bits.tag(5, 1)
-  val dmem_resp_valid = io.dmem.resp.valid && io.dmem.resp.bits.has_data
-  val dmem_resp_replay = dmem_resp_valid && io.dmem.resp.bits.replay
+  val dmem_resp_xpu = Mux((checker_mode === 1.U), !lsl_resp_tag(0).asBool, !io.dmem.resp.bits.tag(0).asBool)
+  val dmem_resp_fpu = Mux((checker_mode === 1.U), lsl_resp_tag(0).asBool, io.dmem.resp.bits.tag(0).asBool)
+  val dmem_resp_waddr = Mux((checker_mode === 1.U), lsl_resp_tag(5,1), io.dmem.resp.bits.tag(5, 1))
+  val dmem_resp_valid = Mux((checker_mode === 1.U), lsl_resp_valid.asBool && lsl_resp_has_data.asBool, io.dmem.resp.valid && io.dmem.resp.bits.has_data)
+  val dmem_resp_replay = Mux((checker_mode === 1.U), dmem_resp_valid && lsl_resp_replay.asBool, dmem_resp_valid && io.dmem.resp.bits.replay)
 
   div.io.resp.ready := !wb_wxd
   val ll_wdata = Wire(init = div.io.resp.bits.data)
@@ -736,7 +762,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val wb_wen = wb_valid && wb_ctrl.wxd
   val rf_wen = wb_wen || ll_wen
   val rf_waddr = Mux(ll_wen, ll_waddr, wb_waddr)
-  val rf_wdata = Mux(dmem_resp_valid && dmem_resp_xpu, io.dmem.resp.bits.data(xLen-1, 0),
+  val rf_wdata = Mux(dmem_resp_valid && dmem_resp_xpu, Mux(checker_mode === 1.U, lsl_resp_data, io.dmem.resp.bits.data(xLen-1, 0)),
                  Mux(ll_wen, ll_wdata,
                  Mux(wb_ctrl.csr =/= CSR.N, csr.io.rw.rdata,
                  Mux(wb_ctrl.mul, mul.map(_.io.resp.bits.data).getOrElse(wb_reg_wdata),
@@ -745,7 +771,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
   val rsu_slave = Module(new R_RSUSL(R_RSUSLParams(xLen, 32)))
-  io.packet_cdc_ready := rsu_slave.io.cdc_ready
   rsu_slave.io.arfs_pidx := io.packet_arfs(140, 136)
   rsu_slave.io.arfs_index := io.packet_arfs(135, 128)
   rsu_slave.io.arfs_merge := io.packet_arfs(127, 0)
@@ -756,6 +781,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   csr.io.pfarf_valid := rsu_slave.io.pfarf_valid_out
   csr.io.fcsr_in := rsu_slave.io.fcsr_out
+  checker_mode := rsu_slave.io.checker_mode
 
   // Added one cycle delay to ensure the RCU being operated at commited stage 
   // Avodiing uninteded reg write after arf_copy
@@ -763,12 +789,39 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   arf_copy_reg := io.arf_copy_in
   rsu_slave.io.copy_arfs := arf_copy_reg
 
+  // Instantiate LSL
+  val lsl = Module(new R_LSL(R_LSLParams(512, xLen)))
+  lsl.io.m_st_valid := io.packet_lsl(137)
+  lsl.io.m_ld_valid := io.packet_lsl(136)
+  lsl.io.m_ldst_data := io.packet_lsl(127,64)
+  lsl.io.m_ldst_addr := io.packet_lsl(63,0)
 
-  when (rf_wen) { 
-    rf.write(rf_waddr, rf_wdata) 
-  } .elsewhen (rf_wen_rsu === 1.U) {
+  lsl_req_ready := lsl.io.req_ready
+  lsl.io.req_valid := lsl_req_valid
+  lsl.io.req_addr := lsl_req_addr
+  lsl.io.req_tag := lsl_req_tag
+  lsl.io.req_cmd := lsl_req_cmd
+  lsl.io.req_data := lsl_req_data
+  lsl.io.req_size := lsl_req_size
+
+  lsl_resp_valid := lsl.io.resp_valid
+  lsl_resp_tag := lsl.io.resp_tag
+  lsl_resp_size := lsl.io.resp_size
+  lsl_resp_data := lsl.io.resp_data
+  lsl_resp_has_data := lsl.io.resp_has_data
+  lsl_resp_replay := lsl.io.resp_replay
+  io.lsl_near_full := lsl.io.near_full
+
+
+  // Revisit: who has the priority?
+  when (rf_wen_rsu === 1.U) {
     rf.write(rsu_slave.io.arfs_idx_out, rsu_slave.io.arfs_out)
+  } .elsewhen (rf_wen) {
+    rf.write(rf_waddr, rf_wdata) 
   }
+
+
+  io.packet_cdc_ready := rsu_slave.io.cdc_ready | lsl.io.cdc_ready
   //===== GuardianCouncil Function: End   ====//
 
   // hook up control/status regfile
@@ -895,7 +948,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     csr.io.csr_stall ||
     id_reg_pause ||
     io.traceStall ||
-    !io.clk_enable_gh
+    !io.clk_enable_gh ||
+    ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
   ctrl_killd := !ibuf.io.inst(0).valid || ibuf.io.inst(0).bits.replay || take_pc_mem_wb || ctrl_stalld || csr.io.interrupt
 
   io.imem.req.valid := take_pc
@@ -904,7 +958,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     Mux(wb_xcpt || csr.io.eret, csr.io.evec, // exception or [m|s]ret
     Mux(replay_wb,              wb_reg_pc,   // replay
                                 mem_npc))    // flush or branch misprediction
-  io.imem.flush_icache := wb_reg_valid && wb_ctrl.fence_i && !io.dmem.s2_nack
+  io.imem.flush_icache := wb_reg_valid && wb_ctrl.fence_i && (Mux(checker_mode === 1.U, false.B, !io.dmem.s2_nack))
   io.imem.might_request := {
     imem_might_request_reg := ex_pc_valid || mem_pc_valid || io.ptw.customCSRs.disableICacheClockGate
     imem_might_request_reg
@@ -946,8 +1000,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.fromint_data := ex_rs(0)
   /* R Features */
   io.fpu.dmem_resp_val := dmem_resp_valid && dmem_resp_fpu
-  io.fpu.dmem_resp_data := io.dmem.resp.bits.data_word_bypass
-  io.fpu.dmem_resp_type := io.dmem.resp.bits.size
+  io.fpu.dmem_resp_data := Mux(checker_mode === 1.U, lsl_resp_data, io.dmem.resp.bits.data_word_bypass)
+  io.fpu.dmem_resp_type := Mux(checker_mode === 1.U, lsl_resp_size, io.dmem.resp.bits.size)
   io.fpu.dmem_resp_tag := dmem_resp_waddr
   io.fpu.keep_clock_enabled := io.ptw.customCSRs.disableCoreClockGate
   
@@ -955,6 +1009,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.r_farf_idx := rsu_slave.io.arfs_idx_out
   io.fpu.r_farf_valid := rsu_slave.io.arfs_valid_out
 
+  /* R Feature --- LSL */
+  /*
   io.dmem.req.valid     := ex_reg_valid && ex_ctrl.mem
   val ex_dcache_tag = Cat(ex_waddr, ex_ctrl.fp)
   require(coreParams.dcacheReqTagBits >= ex_dcache_tag.getWidth)
@@ -970,12 +1026,44 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.dmem.s1_data.data := (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2))
   io.dmem.s1_kill := killm_common || mem_ldst_xcpt || fpu_kill_mem
   io.dmem.s2_kill := false
+  */
+  
+  // Simply tied-off the signals sent to D$, when the core is in the checker mode.
+  // It might be fine only mask the io.dmem.req.valid, but for safety -- let us amsk all dmem.req signals.
+  io.dmem.req.valid     := Mux(checker_mode === 1.U, 0.U, ex_reg_valid && ex_ctrl.mem)
+  val ex_dcache_tag      = Mux(checker_mode === 1.U, 0.U, Cat(ex_waddr, ex_ctrl.fp))
+  require(coreParams.dcacheReqTagBits >= ex_dcache_tag.getWidth)
+  io.dmem.req.bits.tag  := Mux(checker_mode === 1.U, 0.U, ex_dcache_tag)
+  io.dmem.req.bits.cmd  := Mux(checker_mode === 1.U, 0.U, ex_ctrl.mem_cmd)
+  io.dmem.req.bits.size := Mux(checker_mode === 1.U, 0.U, ex_reg_mem_size)
+  io.dmem.req.bits.signed := Mux(checker_mode === 1.U, 0.U, !Mux(ex_reg_hls, ex_reg_inst(20), ex_reg_inst(14)))
+  io.dmem.req.bits.phys := Bool(false)
+  io.dmem.req.bits.addr := Mux(checker_mode === 1.U, 0.U, encodeVirtualAddress(ex_rs(0), alu.io.adder_out))
+  io.dmem.req.bits.idx.foreach(_ := Mux(checker_mode === 1.U, 0.U, io.dmem.req.bits.addr))
+  io.dmem.req.bits.dprv := Mux(checker_mode === 1.U, 0.U, Mux(ex_reg_hls, csr.io.hstatus.spvp, csr.io.status.dprv))
+  io.dmem.req.bits.dv := Mux(checker_mode === 1.U, 0.U, ex_reg_hls || csr.io.status.dv)
+  io.dmem.s1_data.data := Mux(checker_mode === 1.U, 0.U, (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2)))
+  io.dmem.s1_kill := Mux(checker_mode === 1.U, 0.U, killm_common || mem_ldst_xcpt || fpu_kill_mem)
+  io.dmem.s2_kill := false
+
+  lsl_req_valid             := Mux(checker_mode === 1.U, mem_reg_valid && mem_ctrl.mem, 0.U)
+  val mem_dcache_tag         = Mux(checker_mode === 1.U, Cat(mem_waddr, mem_ctrl.fp), 0.U)
+  lsl_req_tag               := mem_dcache_tag
+  val alu_adder_out          = Reg(UInt())
+  val mem_rs0                = Reg(UInt())
+  alu_adder_out             := alu.io.adder_out
+  mem_rs0                   := ex_rs(0)
+  lsl_req_addr              := Mux(checker_mode === 1.U, encodeVirtualAddress(mem_rs0, alu_adder_out), 0.U)
+  lsl_req_cmd               := Mux(checker_mode === 1.U, Cat(isWrite(mem_ctrl.mem_cmd).asUInt, isRead(mem_ctrl.mem_cmd).asUInt), 0.U)
+  lsl_req_size              := Mux(checker_mode === 1.U, mem_reg_mem_size, 0.U)
+  lsl_req_data              := 0.U
+  
   // don't let D$ go to sleep if we're probably going to use it soon
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall
 
   //===== GuardianCouncil Function: Start ====//
   when (mem_pc_valid) {
-    io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc //revisit
+    io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc
     io.rocc.exception := mem_xcpt && csr.io.status.xs.orR
     io.rocc.cmd.bits.status := csr.io.status
     io.rocc.cmd.bits.inst := new RoCCInstruction().fromBits(mem_reg_inst)
@@ -989,6 +1077,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   when (unpause) { id_reg_pause := false }
   io.cease := csr.io.status.cease && !clock_en_reg
   io.wfi := csr.io.status.wfi
+  // Below should not be used, as we do not enable the clock gating for the core
   if (rocketParams.clockGate) {
     long_latency_stall := csr.io.csr_stall || io.dmem.perf.blocked || id_reg_pause && !unpause
     clock_en := clock_en_reg || ex_pc_valid || (!long_latency_stall && io.imem.resp.valid)

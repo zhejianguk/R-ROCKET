@@ -162,9 +162,13 @@ trait HasCoreIO extends HasTileParameters {
     val csr_rw_wdata = UInt(p(XLen).W).asOutput
 
     val packet_arfs = UInt(141.W).asInput
+    val packet_lsl = UInt(141.W).asInput
+
     val packet_cdc_ready = UInt(1.W).asOutput
     val arf_copy_in = UInt(1.W).asInput
     val rsu_status = UInt(2.W).asOutput
+    val s_or_r = UInt(1.W).asInput
+    val lsl_near_full = UInt(1.W).asOutput
     //===== GuardianCouncil Function: End ====//
   }
 }
