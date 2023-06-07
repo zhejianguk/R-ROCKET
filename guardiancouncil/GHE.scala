@@ -84,6 +84,12 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     /* R Features */
     val doCopy                  = (cmd.fire && (funct === 0x60.U))
     val doCheckRSU              = (cmd.fire && (funct === 0x61.U))
+    val doReadELU_S1            = (cmd.fire && (funct === 0x62.U) && (rs1_val === 1.U))
+    val doReadELU_S2            = (cmd.fire && (funct === 0x62.U) && (rs1_val === 2.U))
+    val doReadELU_S3            = (cmd.fire && (funct === 0x62.U) && (rs1_val === 3.U))
+    val doReadELU_S4            = (cmd.fire && (funct === 0x62.U) && (rs1_val === 4.U))
+    val doReadELU_S5            = (cmd.fire && (funct === 0x62.U) && (rs1_val === 5.U))
+    val doDeqELU                = (cmd.fire && (funct === 0x63.U))
 
 
 
@@ -188,7 +194,12 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
                                           doFIFOCache1        -> fifo_cache(1),
                                           doCheckCritial      -> Cat(zeros_62bits, ght_critial_reg(1,0)),
                                           doCheckHA           -> ha_rslt,
-                                          doCheckRSU          -> io.rsu_status_in
+                                          doCheckRSU          -> io.rsu_status_in,
+                                          doReadELU_S1        -> io.elu_data_in(39,0),
+                                          doReadELU_S2        -> io.elu_data_in(79,40),
+                                          doReadELU_S3        -> io.elu_data_in(143,80),
+                                          doReadELU_S4        -> io.elu_data_in(207,144),
+                                          doReadELU_S4        -> io.elu_data_in(247,208)
                                           )
                                           )
                                           
@@ -296,4 +307,5 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     io.snapshot_out           := doSnapshot
     io.arf_copy_out           := doCopy
     io.s_or_r_out             := s_or_r
+    io.elu_deq_out            := doDeqELU
 }

@@ -145,6 +145,8 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val ghe_bridge = Module(new GH_Bridge(GH_BridgeParams(5)))
   val ght_cfg_bridge = Module(new GH_Bridge(GH_BridgeParams(32)))
   val ght_cfg_v_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
+  val if_correct_process_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
+  val elu_deq_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
 
   /* R Features */
   // A mini-decoder for packets
@@ -199,6 +201,8 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     core.io.packet_lsl := packet_lsl
     core.io.arf_copy_in := arf_copy_bridge.io.out
     core.io.s_or_r := s_or_r
+    core.io.if_correct_process := if_correct_process_bridge.io.out
+    core.io.elu_deq := elu_deq_bridge.io.out
   }
     
   //===== GuardianCouncil Function: End ====//
@@ -273,6 +277,11 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     /* R Features */
     cmdRouter.get.io.rsu_status_in := core.io.rsu_status
     s_or_r := cmdRouter.get.io.s_or_r_out
+    cmdRouter.get.io.ght_satp_ppn := core.io.ptw.ptbr.ppn
+    cmdRouter.get.io.ght_sys_mode := core.io.ght_prv
+    if_correct_process_bridge.io.in := cmdRouter.get.io.if_correct_process_out
+    cmdRouter.get.io.elu_data_in := core.io.elu_data
+    elu_deq_bridge.io.in := cmdRouter.get.io.elu_deq_out
     //===== GuardianCouncil Function: End   ====//
   }
 

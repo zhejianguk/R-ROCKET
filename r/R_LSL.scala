@@ -30,6 +30,7 @@ class R_LSLIO(params: R_LSLParams) extends Bundle {
   val resp_size = Output(UInt(2.W))
   val resp_data = Output(UInt(params.xLen.W))
   val resp_has_data = Output(UInt(1.W))
+  val resp_addr = Output(UInt(40.W))
   val resp_replay = Output(UInt(1.W))
   val near_full = Output(UInt(1.W))
 }
@@ -84,7 +85,8 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   io.resp_tag                := resp_tag
   // Revisit
   io.resp_size               := Mux((resp_valid_reg === 1.U), req_size_reg, 0.U)
-  io.resp_data               := Mux((resp_valid_reg === 1.U) && (cmd === 1.U), channel_deq_data(127, 64), 0.U)
+  io.resp_data               := Mux((resp_valid_reg === 1.U), channel_deq_data(127, 64), 0.U)
+  io.resp_addr               := Mux((resp_valid_reg === 1.U), channel_deq_data(63, 0), 0.U)
   io.resp_has_data           := Mux((resp_valid_reg === 1.U) && (cmd === 1.U), 1.U, 0.U)
   io.resp_replay             := 0.U // Cashed respone
   io.near_full               := u_channel.io.status_fiveslots

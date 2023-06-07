@@ -19,6 +19,7 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val fcsr_out = Output(UInt(8.W))
   val pfarf_valid_out = Output(UInt(1.W))
 
+  val if_correct_process = Input(UInt(1.W))
   val core_hang_up = Output(UInt(1.W))
   val checker_mode = Output(UInt(1.W))
 
@@ -87,7 +88,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   // Revisit
   checker_mode                                   := Mux(apply_counter === 0x20.U, 1.U, checker_mode)
-  io.checker_mode                                := checker_mode
+  io.checker_mode                                := checker_mode & io.if_correct_process
 
   io.arfs_out                                    := Mux(((apply_snapshot === 1.U) && (apply_counter =/= 0x20.U)), arfs_ss(apply_counter), 0.U)
   io.farfs_out                                   := Mux(((apply_snapshot === 1.U) && (apply_counter =/= 0x20.U)), farfs_ss(apply_counter), 0.U)

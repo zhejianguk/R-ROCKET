@@ -81,6 +81,8 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val arf_copy_out = Output(UInt(1.W))
   val rsu_status_in = Input(UInt(2.W))
   val s_or_r_out = Output(UInt(1.W))
+  val elu_data_in = Input(UInt(248.W))
+  val elu_deq_out = Output(UInt(1.W))
   //===== GuardianCouncil Function: End   ====//
 }
 
@@ -155,8 +157,10 @@ trait HasLazyRoCCModule extends CanHavePTWModule
       cmdRouter.io.s_or_r_in := rocc.module.io.s_or_r_out
       cmdRouter.io.arf_copy_in := rocc.module.io.arf_copy_out
       rocc.module.io.rsu_status_in := cmdRouter.io.rsu_status_in
-
-
+      rocc.module.io.ght_satp_ppn := cmdRouter.io.ght_satp_ppn
+      rocc.module.io.ght_sys_mode := cmdRouter.io.ght_sys_mode
+      rocc.module.io.elu_data_in := cmdRouter.io.elu_data_in
+      cmdRouter.io.elu_deq_in := rocc.module.io.elu_deq_out
       //===== GuardianCouncil Function: End   ====//
     }
 
@@ -512,6 +516,11 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val rsu_status_in = Input(UInt(2.W))
     val s_or_r_out = Output(UInt(1.W))
     val s_or_r_in = Input(UInt(1.W))
+    val ght_satp_ppn  = Input(UInt(44.W))
+    val ght_sys_mode  = Input(UInt(2.W))
+    val elu_data_in = Input(UInt(248.W))
+    val elu_deq_out = Output(UInt(1.W))
+    val elu_deq_in = Input(UInt(1.W))
     //===== GuardianCouncil Function: End   ====//
   }
 
@@ -543,6 +552,7 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.snapshot_out := io.snapshot_in
   io.arf_copy_out := io.arf_copy_in
   io.s_or_r_out := io.s_or_r_in
+  io.elu_deq_out := io.elu_deq_in
   //===== GuardianCouncil Function: End   ====//
   assert(PopCount(cmdReadys) <= 1.U,
     "Custom opcode matched for more than one accelerator")

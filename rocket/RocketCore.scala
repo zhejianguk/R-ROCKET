@@ -308,7 +308,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   /* R Features */
   val rsu_pc = Reg(UInt(width=40))
-  val checker_mode = Reg(UInt(width=1))
+  val checker_mode = Wire(UInt(width=1))
 
   val lsl_req_ready     = Wire(UInt(width=1))
   val lsl_req_valid     = Wire(UInt(width=1))
@@ -320,6 +320,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val lsl_resp_valid    = Wire(UInt(width=1))
   val lsl_resp_tag      = Wire(UInt(width=8))
   val lsl_resp_size     = Wire(UInt(width=2))
+  val lsl_resp_addr     = Wire(UInt(width=40))
   val lsl_resp_data     = Wire(UInt(width=xLen))
   val lsl_resp_has_data = Wire(UInt(width=1))
   val lsl_resp_replay   = Wire(UInt(width=1))
@@ -778,6 +779,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   rf_wen_rsu := rsu_slave.io.arfs_valid_out
   rsu_pc := rsu_slave.io.pcarf_out
   io.rsu_status := rsu_slave.io.rsu_status
+  rsu_slave.io.if_correct_process := io.if_correct_process
 
   csr.io.pfarf_valid := rsu_slave.io.pfarf_valid_out
   csr.io.fcsr_in := rsu_slave.io.fcsr_out
@@ -807,11 +809,26 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_resp_valid := lsl.io.resp_valid
   lsl_resp_tag := lsl.io.resp_tag
   lsl_resp_size := lsl.io.resp_size
+  lsl_resp_addr := lsl.io.resp_addr
   lsl_resp_data := lsl.io.resp_data
   lsl_resp_has_data := lsl.io.resp_has_data
   lsl_resp_replay := lsl.io.resp_replay
   io.lsl_near_full := lsl.io.near_full
 
+  // Instantiate ELU
+  val elu = Module(new R_ELU(R_ELUParams(16, xLen, 40)))
+  elu.io.lsl_req_valid := lsl_req_valid
+  elu.io.lsl_req_addr := lsl_req_addr
+  elu.io.lsl_req_cmd := lsl_req_cmd
+  elu.io.lsl_req_data := lsl_req_data
+
+  elu.io.lsl_resp_valid := lsl_resp_valid
+  elu.io.lsl_resp_addr := lsl_resp_addr
+  elu.io.lsl_resp_data := lsl_resp_data
+  elu.io.wb_pc := Mux(wb_reg_valid, wb_reg_pc, 0.U)
+  io.elu_data := elu.io.elu_data
+  elu.io.elu_deq := io.elu_deq
+  elu.io.lsl_resp_addr := lsl_resp_addr
 
   // Revisit: who has the priority?
   when (rf_wen_rsu === 1.U) {
@@ -1056,7 +1073,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_req_addr              := Mux(checker_mode === 1.U, encodeVirtualAddress(mem_rs0, alu_adder_out), 0.U)
   lsl_req_cmd               := Mux(checker_mode === 1.U, Cat(isWrite(mem_ctrl.mem_cmd).asUInt, isRead(mem_ctrl.mem_cmd).asUInt), 0.U)
   lsl_req_size              := Mux(checker_mode === 1.U, mem_reg_mem_size, 0.U)
-  lsl_req_data              := 0.U
+  lsl_req_data              := Mux(checker_mode === 1.U, (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2)), 0.U)
   
   // don't let D$ go to sleep if we're probably going to use it soon
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall
@@ -1070,6 +1087,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     io.rocc.cmd.bits.rs1 := mem_reg_wdata
     io.rocc.cmd.bits.rs2 := mem_reg_rs2
   }
+
+  io.ght_prv := csr.io.status.prv
   //===== GuardianCouncil Function: End  ====//
 
   // gate the clock

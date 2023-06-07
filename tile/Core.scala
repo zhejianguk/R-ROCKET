@@ -169,6 +169,10 @@ trait HasCoreIO extends HasTileParameters {
     val rsu_status = UInt(2.W).asOutput
     val s_or_r = UInt(1.W).asInput
     val lsl_near_full = UInt(1.W).asOutput
+    val ght_prv = UInt(2.W).asOutput
+    val if_correct_process = UInt(1.W).asInput
+    val elu_data = UInt(248.W).asOutput
+    val elu_deq = UInt(1.W).asInput
     //===== GuardianCouncil Function: End ====//
   }
 }
