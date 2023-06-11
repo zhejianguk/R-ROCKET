@@ -325,6 +325,12 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val lsl_resp_has_data = Wire(UInt(width=1))
   val lsl_resp_replay   = Wire(UInt(width=1))
   val lsl_req_size      = Wire(UInt(width=2))
+  val lsl_req_kill      = Wire(UInt(width=1))
+  
+  val lsl_req_valid_csr = Wire(UInt(width=1))
+  val lsl_resp_data_csr = Wire(UInt(width=xLen))
+  val lsl_resp_replay_csr = Wire(UInt(width=1))
+  val lsl_req_ready_csr = Wire(UInt(width=1))
   //===== GuardianCouncil Function: End   ====//
 
   val id_scie_decoder = if (!rocketParams.useSCIE) Wire(new SCIEDecoderInterface) else {
@@ -719,10 +725,11 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
   val wb_wxd = wb_reg_valid && wb_ctrl.wxd && !io.rocc.resp.valid
   val replay_wb_rocc = wb_reg_valid && wb_ctrl.rocc && Bool(false) // in guardian council, rocc.cmd.ready is always ready
+  val replay_wb_lsl = Mux((checker_mode === 1.U), lsl_resp_replay.asBool || lsl_resp_replay_csr.asBool, false.B)
   //===== GuardianCouncil Function: End   ====//
 
   val wb_set_sboard = wb_ctrl.div || wb_dcache_miss || wb_ctrl.rocc
-  val replay_wb_common = Mux(checker_mode === 1.U, false.B, io.dmem.s2_nack) || wb_reg_replay
+  val replay_wb_common = Mux(checker_mode === 1.U, replay_wb_lsl, io.dmem.s2_nack) || wb_reg_replay
   val replay_wb = replay_wb_common || replay_wb_rocc
   take_pc_wb := replay_wb || wb_xcpt || csr.io.eret || wb_reg_flush_pipe
 
@@ -758,16 +765,24 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   // Original design:
   // val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt
   // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
+  val wb_csr = (wb_reg_inst(6,0) === 0x73.U) && (wb_reg_inst(14,12) === 0x2.U) && wb_reg_valid
+  lsl_resp_replay_csr := Mux(checker_mode.asBool, wb_csr && !lsl_req_ready_csr, false.B)
   val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt && !io.rocc.resp.valid
   //===== GuardianCouncil Function: End   ====//
-  val wb_wen = wb_valid && wb_ctrl.wxd
+  val wb_wen = wb_valid && wb_ctrl.wxd && !lsl_resp_replay_csr
   val rf_wen = wb_wen || ll_wen
   val rf_waddr = Mux(ll_wen, ll_waddr, wb_waddr)
   val rf_wdata = Mux(dmem_resp_valid && dmem_resp_xpu, Mux(checker_mode === 1.U, lsl_resp_data, io.dmem.resp.bits.data(xLen-1, 0)),
                  Mux(ll_wen, ll_wdata,
-                 Mux(wb_ctrl.csr =/= CSR.N, csr.io.rw.rdata,
+                 Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, lsl_resp_data_csr, csr.io.rw.rdata),
                  Mux(wb_ctrl.mul, mul.map(_.io.resp.bits.data).getOrElse(wb_reg_wdata),
                  wb_reg_wdata))))
+
+
+  lsl_req_valid_csr := Mux(rf_wen, 
+                       Mux(dmem_resp_valid && dmem_resp_xpu, false.B,
+                       Mux(ll_wen, false.B,
+                       Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, true.B, false.B), false.B))), false.B)
 
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
@@ -793,8 +808,10 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   // Instantiate LSL
   val lsl = Module(new R_LSL(R_LSLParams(512, xLen)))
-  lsl.io.m_st_valid := io.packet_lsl(137)
-  lsl.io.m_ld_valid := io.packet_lsl(136)
+  lsl.io.m_st_valid := Mux(((io.packet_lsl(137) === 1.U) && (io.packet_lsl(136) =/= 1.U)), 1.U, 0.U)
+  lsl.io.m_ld_valid := Mux(((io.packet_lsl(137) =/= 1.U) && (io.packet_lsl(136) === 1.U)), 1.U, 0.U)
+  lsl.io.m_csr_valid := Mux(((io.packet_lsl(137) === 1.U) && (io.packet_lsl(136) === 1.U)), 1.U, 0.U)
+  lsl.io.m_csr_data := io.packet_lsl(65, 2)
   lsl.io.m_ldst_data := io.packet_lsl(127,64)
   lsl.io.m_ldst_addr := io.packet_lsl(63,0)
 
@@ -805,6 +822,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl.io.req_cmd := lsl_req_cmd
   lsl.io.req_data := lsl_req_data
   lsl.io.req_size := lsl_req_size
+  lsl.io.req_kill := lsl_req_kill
+  lsl.io.req_valid_csr := lsl_req_valid_csr
 
   lsl_resp_valid := lsl.io.resp_valid
   lsl_resp_tag := lsl.io.resp_tag
@@ -814,6 +833,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_resp_has_data := lsl.io.resp_has_data
   lsl_resp_replay := lsl.io.resp_replay
   io.lsl_near_full := lsl.io.near_full
+  lsl_resp_data_csr := lsl.io.resp_data_csr
+  lsl_req_ready_csr := lsl.io.req_ready_csr
 
   // Instantiate ELU
   val elu = Module(new R_ELU(R_ELUParams(16, xLen, 40)))
@@ -965,8 +986,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     csr.io.csr_stall ||
     id_reg_pause ||
     io.traceStall ||
-    !io.clk_enable_gh ||
-    ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
+    !io.clk_enable_gh
+    // ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
   ctrl_killd := !ibuf.io.inst(0).valid || ibuf.io.inst(0).bits.replay || take_pc_mem_wb || ctrl_stalld || csr.io.interrupt
 
   io.imem.req.valid := take_pc
@@ -1063,7 +1084,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.dmem.s1_kill := Mux(checker_mode === 1.U, 0.U, killm_common || mem_ldst_xcpt || fpu_kill_mem)
   io.dmem.s2_kill := false
 
-  lsl_req_valid             := Mux(checker_mode === 1.U, mem_reg_valid && mem_ctrl.mem, 0.U)
+  lsl_req_valid             := Mux(checker_mode === 1.U, (mem_reg_valid && mem_ctrl.mem), 0.U)
   val mem_dcache_tag         = Mux(checker_mode === 1.U, Cat(mem_waddr, mem_ctrl.fp), 0.U)
   lsl_req_tag               := mem_dcache_tag
   val alu_adder_out          = Reg(UInt())
@@ -1074,6 +1095,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_req_cmd               := Mux(checker_mode === 1.U, Cat(isWrite(mem_ctrl.mem_cmd).asUInt, isRead(mem_ctrl.mem_cmd).asUInt), 0.U)
   lsl_req_size              := Mux(checker_mode === 1.U, mem_reg_mem_size, 0.U)
   lsl_req_data              := Mux(checker_mode === 1.U, (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2)), 0.U)
+  lsl_req_kill              := Mux(checker_mode === 1.U, (killm_common || mem_ldst_xcpt || fpu_kill_mem), 0.U)
   
   // don't let D$ go to sleep if we're probably going to use it soon
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall

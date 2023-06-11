@@ -166,7 +166,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
                                                     Array((dp_sel_reg === 0.U) -> 0.U,
                                                           (dp_sel_reg === 2.U) -> Cat(dp_ldst_data, dp_ldst_reg),
                                                           (dp_sel_reg === 3.U) -> Cat(dp_ldst_data, dp_ldst_reg),
-                                                          (dp_sel_reg === 1.U) -> Cat(pc_reg_delay, inst_reg_delay, Cat(dp_jump_wire(61,0), jump_type))
+                                                          (dp_sel_reg === 1.U) -> Cat(pc_reg_delay(29,0), inst_reg_delay, Cat(dp_jump_wire(63,0), jump_type))
                                                           )
                                                           )
   io.ght_ft_inst_index                         := inst_index_reg
