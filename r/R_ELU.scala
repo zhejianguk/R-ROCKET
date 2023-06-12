@@ -17,11 +17,14 @@ class R_ELUIO(params: R_ELUParams) extends Bundle {
   val lsl_req_cmd = Input(UInt(2.W))
   val lsl_req_data = Input(UInt(params.xLen.W))
   val lsl_req_size = Input(UInt(2.W)) // 11: 64 bits; 10: 32 bits; 01: 16 bits; 00: 8 bits.
+  val lsl_req_ready = Input(UInt(1.W))
+  val lsl_req_kill = Input(UInt(1.W))
 
   val lsl_resp_valid = Input(UInt(1.W))
   val lsl_resp_addr = Input(UInt(params.wAddr.W))
   val lsl_resp_data = Input(UInt(params.xLen.W))
   val wb_pc = Input(UInt(params.wAddr.W))
+  val wb_inst = Input(UInt(32.W))
 
   val elu_deq = Input(UInt(1.W))
   val elu_data = Output(UInt((2*params.xLen+3*params.wAddr).W))
@@ -33,7 +36,8 @@ trait HasR_ELUIO extends BaseModule {
 }
 
 class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
-  val ld_valid                = RegInit(false.B)
+  val ld_valid_reg            = RegInit(false.B)
+  val ld_valid                = WireInit(false.B)
   val st_valid                = RegInit(false.B)
   val req_addr_reg            = RegInit(0.U(params.wAddr.W))
   val req_data_reg            = RegInit(0.U(params.xLen.W))
@@ -42,11 +46,16 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
   val req_data_wire           = WireInit(0.U(params.xLen.W))
   val resp_data_wire          = WireInit(0.U(params.xLen.W))
 
-  ld_valid                   := io.lsl_req_valid.asBool && (io.lsl_req_cmd === 0x01.U)
-  st_valid                   := io.lsl_req_valid.asBool && (io.lsl_req_cmd === 0x02.U)
+  val if_amo                  = WireInit(false.B)
+  if_amo                     := (io.wb_inst(6,0) === 0x2F.U) && ((io.wb_inst(14,12) === 0x2.U) || (io.wb_inst(14,12) === 0x3.U))
+  val if_amo_sc               = if_amo && (io.wb_inst(31,27) === 0x03.U)
+
+  ld_valid_reg               := !io.lsl_req_kill.asBool && io.lsl_req_ready.asBool && io.lsl_req_valid.asBool && ((io.lsl_req_cmd === 0x01.U) || (io.lsl_req_cmd === 0x03.U))
+  ld_valid                   := ld_valid_reg && !if_amo_sc
+  st_valid                   := !io.lsl_req_kill.asBool && io.lsl_req_ready.asBool && io.lsl_req_valid.asBool && (io.lsl_req_cmd === 0x02.U)
   req_addr_reg               := io.lsl_req_addr
   req_data_reg               := io.lsl_req_data
-  size                       := io.lsl_req_size
+  size                       := io.lsl_req_size(0)
 
   val zeros_32bits            = WireInit(0.U(32.W))
   val zeros_48bits            = WireInit(0.U(48.W))

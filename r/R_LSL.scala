@@ -95,7 +95,7 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   io.resp_size               := Mux((resp_valid_reg === 1.U), req_size_reg, 0.U)
   io.resp_data               := Mux((resp_valid_reg === 1.U), channel_deq_data(127, 64), 0.U)
   io.resp_addr               := Mux((resp_valid_reg === 1.U), channel_deq_data(63, 0), 0.U)
-  io.resp_has_data           := Mux((resp_valid_reg === 1.U) && (cmd === 1.U), 1.U, 0.U)
+  io.resp_has_data           := Mux((resp_valid_reg === 1.U) && (cmd(0) === 1.U), 1.U, 0.U)
   io.resp_replay             := req_valid_reg & !resp_valid_reg
 
   val u_channel_csr           = Module (new GH_FIFO(FIFOParams(params.xLen, 64)))

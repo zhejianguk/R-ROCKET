@@ -842,11 +842,14 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   elu.io.lsl_req_addr := lsl_req_addr
   elu.io.lsl_req_cmd := lsl_req_cmd
   elu.io.lsl_req_data := lsl_req_data
+  elu.io.lsl_req_ready := lsl_req_ready
+  elu.io.lsl_req_kill := lsl_req_kill
 
   elu.io.lsl_resp_valid := lsl_resp_valid
   elu.io.lsl_resp_addr := lsl_resp_addr
   elu.io.lsl_resp_data := lsl_resp_data
   elu.io.wb_pc := Mux(wb_reg_valid, wb_reg_pc, 0.U)
+  elu.io.wb_inst := Mux(wb_reg_valid, wb_reg_inst, 0.U)
   io.elu_data := elu.io.elu_data
   elu.io.elu_deq := io.elu_deq
   elu.io.lsl_resp_addr := lsl_resp_addr
