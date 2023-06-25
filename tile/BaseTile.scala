@@ -16,6 +16,10 @@ import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util._
 import freechips.rocketchip.prci.{ClockSinkParameters}
 
+//===== GuardianCouncil Function: Start ====//
+import freechips.rocketchip.guardiancouncil._
+//===== GuardianCouncil Function: End   ====//
+
 case object TileVisibilityNodeKey extends Field[TLEphemeralNode]
 case object TileKey extends Field[TileParams]
 case object LookupByHartId extends Field[LookupByHartIdImpl]
@@ -240,15 +244,23 @@ abstract class BaseTile private (val crossing: ClockCrossingType, q: Parameters)
   /** Node for supplying a reset vector that processors in this tile might begin fetching instructions from as they come out of reset. */
   val resetVectorNode: BundleBridgeInwardNode[UInt] =
     resetVectorSinkNode := resetVectorNexusNode := BundleBridgeNameNode("reset_vector")
-  //===== GuardianCouncil Function: Start ====// 
+  //===== GuardianCouncil Function: Start ====//
+  val ic_counter_SRNode           = BundleBridgeSource[UInt](Some(() => UInt((16*GH_GlobalParams.GH_NUM_CORES).W)))
+  val ic_counter_SKNode           = BundleBridgeSink[UInt](Some(() => UInt(16.W)))
+  val clear_ic_status_SRNode      = BundleBridgeSource[UInt](Some(() => UInt(1.W)))
+  val clear_ic_status_tomainSKNode= BundleBridgeSink[UInt](Some(() => UInt(GH_GlobalParams.GH_NUM_CORES.W)))
+  val icsl_naSKNode               = BundleBridgeSink[UInt](Some(() => UInt(GH_GlobalParams.GH_NUM_CORES.W)))
+
   val ghm_agg_core_id_out_SRNode  = BundleBridgeSource[UInt](Some(() => UInt(16.W)))
-  val ght_packet_out_SRNode       = BundleBridgeSource[UInt](Some(() => UInt(141.W)))
+  val ght_packet_out_SRNode       = BundleBridgeSource[UInt](Some(() => UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W)))
   val ght_packet_dest_SRNode      = BundleBridgeSource[UInt](Some(() => UInt(32.W)))
   val ght_status_out_SRNode       = BundleBridgeSource[UInt](Some(() => UInt(32.W)))
   println("#### Jessica #### Generating GHT **Nodes** on the tile, HartID:", tileParams.hartId, "...!!")
-  val ghe_packet_in_SKNode        = BundleBridgeSink[UInt](Some(() => UInt(141.W)))
+  val ghe_packet_in_SKNode        = BundleBridgeSink[UInt](Some(() => UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W)))
   val ghe_status_in_SKNode        = BundleBridgeSink[UInt](Some(() => UInt(32.W)))
   val ghe_event_out_SRNode        = BundleBridgeSource[UInt](Some(() => UInt(5.W)))
+  val ghe_revent_out_SRNode       = BundleBridgeSource[UInt](Some(() => UInt(1.W)))
+
   println("#### Jessica #### Generating GHE **Nodes** on the tile, HartID:", tileParams.hartId, "...!!")
   val bigcore_hang_in_SKNode      = BundleBridgeSink[UInt](Some(() => UInt(1.W)))
   val bigcore_comp_in_SKNode      = BundleBridgeSink[UInt](Some(() => UInt(3.W)))

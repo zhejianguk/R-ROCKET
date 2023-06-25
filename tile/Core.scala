@@ -8,6 +8,10 @@ import freechips.rocketchip.config._
 import freechips.rocketchip.rocket._
 import freechips.rocketchip.util._
 
+//===== GuardianCouncil Function: Start ====//
+import freechips.rocketchip.guardiancouncil._
+//===== GuardianCouncil Function: End   ====//
+
 case object XLen extends Field[Int]
 case object MaxHartIdBits extends Field[Int]
 
@@ -154,6 +158,10 @@ trait HasCoreIO extends HasTileParameters {
     val wfi = Bool().asOutput
     val traceStall = Bool().asInput
     //===== GuardianCouncil Function: Start ====//
+    val arfs_if_CPS = UInt(1.W).asInput
+    val record_pc = UInt(1.W).asInput
+    val ic_counter = UInt(16.W).asInput
+    val clear_ic_status = UInt(1.W).asOutput
     val pc = UInt(vaddrBitsExtended.W).asOutput
     val inst = UInt(32.W).asOutput
     val new_commit = UInt(1.W).asOutput
@@ -161,8 +169,8 @@ trait HasCoreIO extends HasTileParameters {
     val alu_2cycle_delay = UInt(p(XLen).W).asOutput
     val csr_rw_wdata = UInt(p(XLen).W).asOutput
 
-    val packet_arfs = UInt(141.W).asInput
-    val packet_lsl = UInt(141.W).asInput
+    val packet_arfs = UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W).asInput
+    val packet_lsl = UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W).asInput
 
     val packet_cdc_ready = UInt(1.W).asOutput
     val arf_copy_in = UInt(1.W).asInput
@@ -171,8 +179,10 @@ trait HasCoreIO extends HasTileParameters {
     val lsl_near_full = UInt(1.W).asOutput
     val ght_prv = UInt(2.W).asOutput
     val if_correct_process = UInt(1.W).asInput
-    val elu_data = UInt(248.W).asOutput
+    val elu_data = UInt(264.W).asOutput
     val elu_deq = UInt(1.W).asInput
+    val elu_sel = UInt(1.W).asInput
+    val elu_status = UInt(2.W).asOutput
     //===== GuardianCouncil Function: End ====//
   }
 }

@@ -15,7 +15,7 @@ case class GHT_MTABLE_Params(
 // I/Os
 //==========================================================
 class GHT_MTABLE_IO (params: GHT_MTABLE_Params) extends Bundle {
-  val cfg_map_inst_type                         = Input(UInt(4.W))
+  val cfg_map_inst_type                         = Input(UInt(8.W))
   val cfg_map_SEs                               = Input(UInt(16.W))
   val cfg_map_valid                             = Input(UInt(1.W))
 

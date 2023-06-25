@@ -9,7 +9,6 @@ import chisel3.experimental.{BaseModule}
 //==========================================================
 case class GHT_FILTER_PRFS_Params(
   xlen: Int,
-  totaltypes_of_insts: Int,
   packet_size: Int,
   use_prfs: Boolean
 )
@@ -25,7 +24,7 @@ class GHT_FILTER_PRFS_IO (params: GHT_FILTER_PRFS_Params) extends Bundle {
   val ght_ft_newcommit_in                       = Input(Bool())
   val ght_ft_alu_in                             = Input(UInt((2*params.xlen).W))
   val ght_ft_is_rvc_in                          = Input(UInt(1.W))
-  val ght_ft_inst_index                         = Output(UInt(5.W))
+  val ght_ft_inst_index                         = Output(UInt(8.W))
   val packet_out                                = Output(UInt((params.packet_size).W))
   val ght_prfs_rd                               = Input(UInt(params.xlen.W))
   
@@ -33,6 +32,7 @@ class GHT_FILTER_PRFS_IO (params: GHT_FILTER_PRFS_Params) extends Bundle {
   val ght_prfs_forward_stq                      = Output(Bool())
   val ght_prfs_forward_ftq                      = Output(Bool())
   val ght_prfs_forward_prf                      = Output(Bool())
+  val ic_crnt_target                            = Input(UInt(5.W)) 
 }
 
 
@@ -175,7 +175,10 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
                                                           (dp_sel_reg === 1.U) -> Mux((inst_index_reg =/= 0.U), Cat(pc_reg_delay(29,0), inst_reg_delay, dp_jump_wire(63,0), jump_type), 0.U)
                                                           )
                                                           )
-  io.ght_ft_inst_index                         := inst_index_reg
+
+  val zero                                      = WireInit(0.U(1.W))
+  val one                                       = WireInit(1.U(1.W))
+  io.ght_ft_inst_index                         := Mux(inst_index_reg =/= 0.U, Cat(one, io.ic_crnt_target(3,0), zero, inst_index_reg), 0.U)
   }
 
   if (!params.use_prfs){

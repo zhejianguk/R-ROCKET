@@ -259,7 +259,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val wb_reg_wdata = Reg(Bits())
   val wb_reg_rs2 = Reg(Bits())
   val take_pc_wb = Wire(Bool())
-  val wb_reg_wphit           = Reg(Vec(nBreakpoints, Bool()))
+  val wb_reg_wphit = Reg(Vec(nBreakpoints, Bool()))
 
   val take_pc_mem_wb = take_pc_wb || take_pc_mem
   val take_pc = take_pc_mem_wb
@@ -331,6 +331,9 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val lsl_resp_data_csr = Wire(UInt(width=xLen))
   val lsl_resp_replay_csr = Wire(UInt(width=1))
   val lsl_req_ready_csr = Wire(UInt(width=1))
+
+  val icsl_if_overtaking = Wire(UInt(width=1))
+  val icsl_if_ret_special_pc = Wire(UInt(width=1))
   //===== GuardianCouncil Function: End   ====//
 
   val id_scie_decoder = if (!rocketParams.useSCIE) Wire(new SCIEDecoderInterface) else {
@@ -451,6 +454,10 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   alu_1cycle_delay_reg := alu.io.out
   alu_2cycle_delay_reg := alu_1cycle_delay_reg
   io.alu_2cycle_delay := alu_2cycle_delay_reg
+  val record_pc = Reg(UInt())
+  val pc_special = Reg(UInt())
+  record_pc := io.record_pc
+  pc_special := Mux(record_pc === 1.U, wb_reg_pc + 4.U, pc_special)
   //===== GuardianCouncil Function: Start ====//
 
   val ex_scie_unpipelined_wdata = if (!rocketParams.useSCIE) 0.U else {
@@ -725,13 +732,17 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
   val wb_wxd = wb_reg_valid && wb_ctrl.wxd && !io.rocc.resp.valid
   val replay_wb_rocc = wb_reg_valid && wb_ctrl.rocc && Bool(false) // in guardian council, rocc.cmd.ready is always ready
-  val replay_wb_lsl = Mux((checker_mode === 1.U), lsl_resp_replay.asBool || lsl_resp_replay_csr.asBool, false.B)
-  //===== GuardianCouncil Function: End   ====//
+  val replay_wb_lsl = Mux((checker_mode === 1.U), lsl_resp_replay.asBool || lsl_resp_replay_csr.asBool , false.B)
+  val wb_csr = (wb_reg_inst(6,0) === 0x73.U) && (wb_reg_inst(14,12) === 0x2.U) && wb_reg_valid
+  lsl_resp_replay_csr := Mux(checker_mode.asBool, wb_csr && !lsl_req_ready_csr, false.B)
 
   val wb_set_sboard = wb_ctrl.div || wb_dcache_miss || wb_ctrl.rocc
   val replay_wb_common = Mux(checker_mode === 1.U, replay_wb_lsl, io.dmem.s2_nack) || wb_reg_replay
-  val replay_wb = replay_wb_common || replay_wb_rocc
+  val replay_wb_without_overtaken = replay_wb_common || replay_wb_rocc
+  val wb_should_be_valid_but_be_overtaken = Mux(checker_mode.asBool, icsl_if_overtaking.asBool && wb_reg_valid && !replay_wb_without_overtaken && !wb_xcpt && !io.rocc.resp.valid, false.B)
+  val replay_wb = replay_wb_without_overtaken || wb_should_be_valid_but_be_overtaken
   take_pc_wb := replay_wb || wb_xcpt || csr.io.eret || wb_reg_flush_pipe
+  //===== GuardianCouncil Function: End   ====//
 
   // writeback arbitration
   val dmem_resp_xpu = Mux((checker_mode === 1.U), !lsl_resp_tag(0).asBool, !io.dmem.resp.bits.tag(0).asBool)
@@ -765,8 +776,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   // Original design:
   // val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt
   // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
-  val wb_csr = (wb_reg_inst(6,0) === 0x73.U) && (wb_reg_inst(14,12) === 0x2.U) && wb_reg_valid
-  lsl_resp_replay_csr := Mux(checker_mode.asBool, wb_csr && !lsl_req_ready_csr, false.B)
   val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt && !io.rocc.resp.valid
   //===== GuardianCouncil Function: End   ====//
   val wb_wen = wb_valid && wb_ctrl.wxd && !lsl_resp_replay_csr
@@ -787,27 +796,53 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
   val rsu_slave = Module(new R_RSUSL(R_RSUSLParams(xLen, 32)))
-  rsu_slave.io.arfs_pidx := io.packet_arfs(140, 136)
+  val lsl = Module(new R_LSL(R_LSLParams(512, xLen)))
+  val icsl = Module(new R_ICSL(R_ICSLParams(16)))
+  val arfs_shadow = Reg(Vec(32, UInt(xLen.W)))
+
+
+  // Instantiate RSU
+  rsu_slave.io.arfs_if_CPS := io.arfs_if_CPS
+  rsu_slave.io.arfs_if_ARFS := Mux((io.packet_arfs(138, 136) === 0x07.U), 1.U, 0.U)
   rsu_slave.io.arfs_index := io.packet_arfs(135, 128)
   rsu_slave.io.arfs_merge := io.packet_arfs(127, 0)
   val rf_wen_rsu = Wire(0.U(1.W))
   rf_wen_rsu := rsu_slave.io.arfs_valid_out
   rsu_pc := rsu_slave.io.pcarf_out
   io.rsu_status := rsu_slave.io.rsu_status
-  rsu_slave.io.if_correct_process := io.if_correct_process
+  rsu_slave.io.do_cp_check := icsl.io.if_rh_cp_pc & rsu_slave.io.rsu_status(1)
+
+  for (i <-0 until 31){
+    rsu_slave.io.core_arfs_in(i) := rf.read(i)
+    rsu_slave.io.core_farfs_in(i) := io.fpu.farfs(i)
+  }
+  rsu_slave.io.elu_cp_deq := Mux(io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
+
 
   csr.io.pfarf_valid := rsu_slave.io.pfarf_valid_out
   csr.io.fcsr_in := rsu_slave.io.fcsr_out
-  checker_mode := rsu_slave.io.checker_mode
 
   // Added one cycle delay to ensure the RCU being operated at commited stage 
   // Avodiing uninteded reg write after arf_copy
   val arf_copy_reg = Reg(0.U(1.W))
   arf_copy_reg := io.arf_copy_in
   rsu_slave.io.copy_arfs := arf_copy_reg
+  rsu_slave.io.clear_ic_status := icsl.io.clear_ic_status
+
+  // Instantiate ICSL
+  icsl.io.ic_counter := io.ic_counter
+  icsl.io.icsl_run := arf_copy_reg
+  icsl.io.new_commit := csr.io.trace(0).valid && !csr.io.trace(0).exception
+  icsl.io.if_correct_process := io.if_correct_process
+  checker_mode := icsl.io.icsl_checkermode
+  io.clear_ic_status := icsl.io.clear_ic_status
+  icsl_if_overtaking := icsl.io.if_overtaking
+  icsl_if_ret_special_pc := icsl.io.if_ret_special_pc
+  val returned_to_special_address_valid = Wire(Bool())
+  icsl.io.returned_to_special_address_valid := returned_to_special_address_valid
+  icsl.io.if_check_completed := rsu_slave.io.if_cp_check_completed
 
   // Instantiate LSL
-  val lsl = Module(new R_LSL(R_LSLParams(512, xLen)))
   lsl.io.m_st_valid := Mux(((io.packet_lsl(137) === 1.U) && (io.packet_lsl(136) =/= 1.U)), 1.U, 0.U)
   lsl.io.m_ld_valid := Mux(((io.packet_lsl(137) =/= 1.U) && (io.packet_lsl(136) === 1.U)), 1.U, 0.U)
   lsl.io.m_csr_valid := Mux(((io.packet_lsl(137) === 1.U) && (io.packet_lsl(136) === 1.U)), 1.U, 0.U)
@@ -850,15 +885,18 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   elu.io.lsl_resp_data := lsl_resp_data
   elu.io.wb_pc := Mux(wb_reg_valid, wb_reg_pc, 0.U)
   elu.io.wb_inst := Mux(wb_reg_valid, wb_reg_inst, 0.U)
-  io.elu_data := elu.io.elu_data
-  elu.io.elu_deq := io.elu_deq
+  io.elu_data := Mux(io.elu_sel.asBool, rsu_slave.io.elu_cp_data, elu.io.elu_data)
+  io.elu_status := Cat(rsu_slave.io.elu_status, elu.io.elu_status)
+  elu.io.elu_deq := Mux(!io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
   elu.io.lsl_resp_addr := lsl_resp_addr
 
-  // Revisit: who has the priority?
+
   when (rf_wen_rsu === 1.U) {
     rf.write(rsu_slave.io.arfs_idx_out, rsu_slave.io.arfs_out)
+    arfs_shadow(rsu_slave.io.arfs_idx_out) := rsu_slave.io.arfs_out
   } .elsewhen (rf_wen) {
-    rf.write(rf_waddr, rf_wdata) 
+    rf.write(rf_waddr, rf_wdata)
+    arfs_shadow(rf_waddr) := rf_wdata
   }
 
 
@@ -976,7 +1014,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     // Original design:
     // id_ex_hazard || id_mem_hazard || id_wb_hazard || id_sboard_hazard ||
     // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore RoCC does not cause a hazzard
-    (rsu_slave.io.core_hang_up === 1.U) || id_ex_hazard || id_mem_hazard || (id_wb_hazard && !wb_ctrl.rocc) || id_sboard_hazard ||
+    rsu_slave.io.core_hang_up.asBool || id_ex_hazard || id_mem_hazard || (id_wb_hazard && !wb_ctrl.rocc) || id_sboard_hazard ||
     //===== GuardianCouncil Function: End   ====//
     csr.io.singleStep && (ex_reg_valid || mem_reg_valid || wb_reg_valid) ||
     id_csr_en && csr.io.decode(0).fp_csr && !io.fpu.fcsr_rdy ||
@@ -993,15 +1031,20 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     // ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
   ctrl_killd := !ibuf.io.inst(0).valid || ibuf.io.inst(0).bits.replay || take_pc_mem_wb || ctrl_stalld || csr.io.interrupt
 
+  val returned_to_special_address = 
+    Mux(wb_xcpt || csr.io.eret, false.B,
+    Mux(replay_wb,              Mux(icsl_if_ret_special_pc.asBool, true.B ,false.B), false.B))
+  returned_to_special_address_valid := take_pc && returned_to_special_address
+
   io.imem.req.valid := take_pc
   io.imem.req.bits.speculative := !take_pc_wb
   io.imem.req.bits.pc :=
     Mux(wb_xcpt || csr.io.eret, csr.io.evec, // exception or [m|s]ret
-    Mux(replay_wb,              wb_reg_pc,   // replay
+    Mux(replay_wb,              Mux(icsl_if_ret_special_pc.asBool, pc_special, wb_reg_pc),   // replay
                                 mem_npc))    // flush or branch misprediction
   io.imem.flush_icache := wb_reg_valid && wb_ctrl.fence_i && (Mux(checker_mode === 1.U, false.B, !io.dmem.s2_nack))
   io.imem.might_request := {
-    imem_might_request_reg := ex_pc_valid || mem_pc_valid || io.ptw.customCSRs.disableICacheClockGate
+    imem_might_request_reg := ex_pc_valid || mem_pc_valid || io.ptw.customCSRs.disableICacheClockGate || true.B  // We do not wish the IMM to sleep as it can have a replay at any time!
     imem_might_request_reg
   }
   io.imem.sfence.valid := wb_reg_valid && wb_reg_sfence

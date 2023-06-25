@@ -22,6 +22,7 @@ class GHT_SCH_IO (params: GHT_SCH_Params) extends Bundle {
   val core_d                                    = Output(UInt(params.totalnumber_of_checkers.W))
   val core_na                                   = Input(Vec(params.totalnumber_of_checkers, UInt(1.W)))
   val sch_hang                                  = Output(UInt(1.W))
+  val sch_dest                                  = Output(UInt(5.W)) // Different from core_d, sch_dest is not BITMAP
 }
 
 
@@ -63,7 +64,8 @@ class GHT_SCH_RR (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
                                                     Array((dest =/= 0.U) -> (1.U << (dest - 1.U)),
                                                           (dest === 0.U) -> 0.U
                                                          ))
-
+  val zero                                      = WireInit(0.U(1.W))
+  io.sch_dest                                  := Cat(zero, dest)
   io.core_d                                    := core_dest
   io.sch_hang                                  := 0.U
 }
@@ -95,7 +97,7 @@ class GHT_SCH_FP (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
   out_of_range                                 := (current_dest < io.core_s) || (current_dest > io.core_e)
 
   // We only change the dest when current core is not avaiable and next core is avaiable 
-  // bit 0 for checker 1, global ID: 1 
+  // bit 0  checker 1, global ID: 1 
   change_dest                                  := ((io.core_na(current_dest-1.U) === 1.U) && (io.core_na(nxt_dest-1.U) === 0.U) || out_of_range)
 
   
@@ -124,7 +126,8 @@ class GHT_SCH_FP (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
                                                           (dest === 0.U) -> 0.U
                                                          ))
                                                          
-
+  val zero                                      = WireInit(0.U(1.W))
+  io.sch_dest                                  := Cat(zero, dest)
   io.core_d                                    := core_dest
 
 }
@@ -171,6 +174,7 @@ class GHT_SCH_RRF (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
                                                        ))
 
   io.core_d                                    := core_dest
-
+  val zero                                      = WireInit(0.U(1.W))
+  io.sch_dest                                  := Cat(zero, dest)
   io.sch_hang                                  := 0.U
 }

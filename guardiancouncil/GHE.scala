@@ -4,7 +4,9 @@ import chisel3._
 import chisel3.util._
 import freechips.rocketchip.config._
 import freechips.rocketchip.tile._
-
+//===== GuardianCouncil Function: Start ====//
+import freechips.rocketchip.guardiancouncil._
+//===== GuardianCouncil Function: End   ====//
 
 
 class GHE(opcodes: OpcodeSet)(implicit p: Parameters) extends LazyRoCC(opcodes) {
@@ -16,7 +18,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val s_or_r                  = RegInit(0.U(1.W))    // If the core runs for security or relaibility? 
                                                        // 0: secuirty; 1: reliability
 
-    val gh_packet_width         = 2*xLen + 13
+    val gh_packet_width         = GH_GlobalParams.GH_WIDITH_PACKETS
     val cmd                     = io.cmd
     val funct                   = cmd.bits.inst.funct
     val rs2                     = cmd.bits.inst.rs2
@@ -90,6 +92,9 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val doReadELU_S4            = (cmd.fire && (funct === 0x62.U) && (rs1_val === 4.U))
     val doReadELU_S5            = (cmd.fire && (funct === 0x62.U) && (rs1_val === 5.U))
     val doDeqELU                = (cmd.fire && (funct === 0x63.U))
+    val doRecordPC              = (cmd.fire && (funct === 0x64.U))
+    val doSelectELU             = (cmd.fire && (funct === 0x65.U))
+    val doCheckELU              = (cmd.fire && (funct === 0x66.U))
 
 
 
@@ -114,7 +119,8 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val doDebug_bp_filter       = (cmd.fire && (funct === 0x1f.U))
     val doDebug_Reset_bp        = (cmd.fire && (funct === 0x2d.U))
     /* R Features */
-    val doSnapshot              = (cmd.fire && (funct === 0x70.U))
+    val doICCTRL                = (cmd.fire && (funct === 0x70.U))
+    val doSetTValue             = (cmd.fire && (funct === 0x71.U))
 
     val ghe_packet_in           = RegInit(0x0.U(gh_packet_width.W))
     ghe_packet_in              := io.ghe_packet_in
@@ -166,6 +172,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
       fifo_cache(1)            := fifo_cache(0)
     }
 
+    val elu_sel                = RegInit(0.U(1.W))
     rd_val                     := MuxCase(0.U, 
                                     Array(doCheck             -> Cat(zeros_channel_status, channel_status_wire), 
                                           doTop_FirstHalf     -> channel_deq_data(127,64),
@@ -199,7 +206,8 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
                                           doReadELU_S2        -> io.elu_data_in(79,40),
                                           doReadELU_S3        -> io.elu_data_in(143,80),
                                           doReadELU_S4        -> io.elu_data_in(207,144),
-                                          doReadELU_S4        -> io.elu_data_in(247,208)
+                                          doReadELU_S4        -> io.elu_data_in(263,208),
+                                          doCheckELU          -> io.elu_status_in(elu_sel)
                                           )
                                           )
                                           
@@ -304,8 +312,18 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
 
 
     /* R Features */
-    io.snapshot_out           := doSnapshot
+    val t_Value                = RegInit(200.U(15.W))
+    when (doSetTValue){
+      t_Value                 := rs1_val(14,0)     
+    }
+    when (doSelectELU){
+      elu_sel                 := rs1_val(0)
+    }
+    io.elu_sel_out            := elu_sel
+    io.t_value_out            := t_Value
+    io.icctrl_out             := Mux(doICCTRL, rs1_val(3,0), 0.U)
     io.arf_copy_out           := doCopy
     io.s_or_r_out             := s_or_r
     io.elu_deq_out            := doDeqELU
+    io.record_pc_out          := Mux(doRecordPC, 1.U, 0.U)
 }

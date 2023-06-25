@@ -58,8 +58,9 @@ class GHT_IO (params: GHTParams) extends Bundle {
   /* R Features */
   val ght_filters_ready                         = Output(UInt(1.W))
   val core_r_arfs                               = Input(Vec(params.core_width, UInt(params.packet_size.W)))
-  val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(5.W)))
+  val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(8.W)))
   val rsu_merging                               = Input(UInt(1.W))
+  val ic_crnt_target                            = Input(UInt(5.W))
 }
 
 trait HasGHT_IO extends BaseModule {
@@ -91,7 +92,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
     ght_is_rvc_ft(i)                            := Mux((io.ght_mask_in === 1.U), 0.U, this.io.ght_is_rvc_in(i))
   }
 
-  val u_ght_filters                              = Module (new GHT_FILTERS_PRFS(GHT_FILTERS_PRFS_Params (params.width_data, params.totaltypes_of_insts, params.packet_size, params.core_width, params.use_prfs)))
+  val u_ght_filters                              = Module (new GHT_FILTERS_PRFS(GHT_FILTERS_PRFS_Params (params.width_data, params.packet_size, params.core_width, params.use_prfs)))
 
   for (i <- 0 to params.core_width - 1) {  
     u_ght_filters.io.ght_ft_newcommit_in(i)     := new_commit_ft(i)
@@ -100,6 +101,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
     u_ght_filters.io.ght_ft_pc_in(i)            := ght_pcaddr_in_ft(i)
     u_ght_filters.io.ght_prfs_rd_ft(i)          := ght_prfs_rd_ft(i)
     u_ght_filters.io.ght_ft_is_rvc_in(i)        := ght_is_rvc_ft(i)
+    u_ght_filters.io.ic_crnt_target             := io.ic_crnt_target
   }
   u_ght_filters.io.ght_stall                    := (this.io.ght_stall || (sch_hang === 1.U))
   this.io.ght_buffer_status                     := u_ght_filters.io.ght_buffer_status
@@ -117,7 +119,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   // execution path
   // using registers to break the critical path
   val ght_pack                                   = WireInit(0.U((params.packet_size).W))
-  val inst_index                                 = WireInit(0.U(5.W))
+  val inst_index                                 = WireInit(0.U(8.W))
   ght_pack                                      := u_ght_filters.io.packet_out
   inst_index                                    := u_ght_filters.io.ght_ft_inst_index
   

@@ -11,9 +11,7 @@ import freechips.rocketchip.util.{ClockDivider2}
 
 case class GAGGParams(
   number_of_little_cores: Int,
-  width_GH_packet: Int, 
-  xlen: Int,
-  id_agg: Int
+  width_GH_packet: Int
 )
 
 
@@ -147,7 +145,7 @@ object GAGGCore {
     subsystem.tile_sch_na_EPNode                  := sch_na_SRNode
 
     val bus = subsystem.locateTLBusWrapper(where)
-    val gagg = LazyModule (new GAGG (GAGGParams (params.number_of_little_cores, params.width_GH_packet, params.xlen, params.id_agg)))
+    val gagg = LazyModule (new GAGG (GAGGParams (params.number_of_little_cores, params.width_GH_packet)))
 
     
     InModuleBody {

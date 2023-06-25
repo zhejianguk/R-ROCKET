@@ -28,6 +28,7 @@ class R_ELUIO(params: R_ELUParams) extends Bundle {
 
   val elu_deq = Input(UInt(1.W))
   val elu_data = Output(UInt((2*params.xLen+3*params.wAddr).W))
+  val elu_status = Output(UInt(1.W))
 }
 
 trait HasR_ELUIO extends BaseModule {
@@ -115,4 +116,5 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
   channel_enq_data           := err_log
   channel_deq_ready          := io.elu_deq
   io.elu_data                := channel_deq_data
+  io.elu_status              := ~channel_empty
 }

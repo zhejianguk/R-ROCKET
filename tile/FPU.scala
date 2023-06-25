@@ -207,7 +207,7 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val r_farf_bits = Input(UInt(64.W))
   val r_farf_idx = Input(UInt(8.W))
   val r_farf_valid = Input(UInt(1.W))
-
+  val farfs = Output(Vec(32, UInt(64.W)))
   val keep_clock_enabled = Bool(INPUT)
 }
 
@@ -796,6 +796,10 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
 
   // regfile
   val regfile = Mem(32, Bits(width = fLen+1))
+  for (i <-0 until 32) { 
+    io.farfs(i) := ieee(regfile(i))
+  }
+
   when (load_wb) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
     regfile(load_wb_tag) := wdata

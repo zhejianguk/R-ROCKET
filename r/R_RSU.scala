@@ -22,7 +22,9 @@ class R_RSUIO(params: R_RSUParams) extends Bundle {
   val rsu_merging = Output(UInt(1.W))
   val arfs_merge = Output(Vec(params.scalarWidth, UInt((params.xLen*2).W)))
   val arfs_index = Output(Vec(params.scalarWidth, UInt(8.W)))
-  val arfs_pidx = Output(Vec(params.scalarWidth, UInt(5.W)))
+  val ic_crnt_target = Input(UInt(5.W))
+  val arfs_pidx = Output(Vec(params.scalarWidth, UInt(8.W)))
+  val rsu_busy = Output(UInt(1.W))
 }
 
 trait HasR_RSUIO extends BaseModule {
@@ -41,7 +43,7 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   val doSnapshot                                  = RegInit(0.U(1.W))
   val doMerge                                     = RegInit(0.U(1.W))
 
-  doSnapshot                                     := io.snapshot // Avoiding the missing snapshot of the fcsr regsiter
+  doSnapshot                                     := io.snapshot 
   doMerge                                        := io.merge 
 
   
@@ -69,6 +71,7 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
 
   val zeros_24bits                                = WireInit(0.U(24.W))
   val zeros_56bits                                = WireInit(0.U(56.W))
+  val seven_3bits                                 = WireInit(7.U(3.W))
 
   for (w <- 0 until params.scalarWidth) {
     if (w == 0) {
@@ -79,7 +82,7 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
                                                           )
 
       io.arfs_index(w)                             := Mux((merging === 1.U), (merge_counter<<2), 0.U)
-      io.arfs_pidx(w)                              := Mux((merging === 1.U), 0x07.U, 0.U) // Revisit: Make it is configurable
+      io.arfs_pidx(w)                              := Mux((merging === 1.U), Cat(io.ic_crnt_target(4,0), seven_3bits), 0.U)
     } else {
       io.arfs_merge(w)                             := MuxCase(0.U,
                                                       Array(((merging === 1.U) && (merge_counter =/= 8.U)) -> Cat(farfs_ss((merge_counter<<2)+w.U), arfs_ss((merge_counter<<2)+w.U)),
@@ -88,10 +91,14 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
                                                           )
 
       io.arfs_index(w)                             := Mux(((merging === 1.U) && (merge_counter =/= 8.U)), ((merge_counter<<2) + w.U), 0.U)
-      io.arfs_pidx(w)                              := Mux(((merging === 1.U) && (merge_counter =/= 8.U)), 0x07.U, 0.U)
+      io.arfs_pidx(w)                              := Mux(((merging === 1.U) && (merge_counter =/= 8.U)), Cat(io.ic_crnt_target(4,0), seven_3bits), 0.U)
     }
   }
   
   io.rsu_merging                                   := merging
+  io.rsu_busy                                      := Mux(io.snapshot.asBool || io.merge.asBool || doSnapshot.asBool || doMerge.asBool || merging.asBool, 1.U, 0.U)
+
+
+
 
 }

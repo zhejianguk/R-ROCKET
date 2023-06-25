@@ -9,7 +9,6 @@ import chisel3.experimental.{BaseModule}
 //==========================================================
 case class GHT_FILTERS_PRFS_Params(
   xlen: Int,
-  totaltypes_of_insts: Int,
   packet_size: Int,
   core_width: Int,
   use_prfs: Boolean
@@ -28,7 +27,7 @@ class GHT_FILTERS_PRFS_IO (params: GHT_FILTERS_PRFS_Params) extends Bundle {
   val ght_ft_alu_in                             = Input(Vec(params.core_width, UInt((2*params.xlen).W)))
   val ght_ft_is_rvc_in                          = Input(Vec(params.core_width, UInt(1.W)))
 
-  val ght_ft_inst_index                         = Output(UInt(5.W))
+  val ght_ft_inst_index                         = Output(UInt(8.W))
   val packet_out                                = Output(UInt((params.packet_size).W))
 
   val ght_stall                                 = Input(Bool())
@@ -47,8 +46,9 @@ class GHT_FILTERS_PRFS_IO (params: GHT_FILTERS_PRFS_Params) extends Bundle {
   /* R Features */
   val ght_filters_ready                         = Output(UInt(1.W))
   val core_r_arfs                               = Input(Vec(params.core_width, UInt(params.packet_size.W)))
-  val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(5.W)))
+  val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(8.W)))
   val rsu_merging                               = Input(UInt(1.W))
+  val ic_crnt_target                            = Input(UInt(5.W)) 
 }
 
 
@@ -63,18 +63,20 @@ trait HasGHT_FILTERS_PRFS_IO extends BaseModule {
 //==========================================================
 class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with HasGHT_FILTERS_PRFS_IO
 {
-  val buffer_width                              = 5 + params.packet_size
   val packet                                    = WireInit(0.U(params.packet_size.W))
-  val inst_type                                 = WireInit(0.U(5.W))
+  val inst_type                                 = WireInit(0.U(8.W))
+  val buffer_width                              = 8 + params.packet_size
 
-  val u_ght_filters                             = Seq.fill(params.core_width) {Module(new GHT_FILTER_PRFS(GHT_FILTER_PRFS_Params(params.xlen, params.totaltypes_of_insts, params.packet_size, params.use_prfs)))}
+
+  val u_ght_filters                             = Seq.fill(params.core_width) {Module(new GHT_FILTER_PRFS(GHT_FILTER_PRFS_Params(params.xlen, params.packet_size, params.use_prfs)))}
   val u_buffer                                  = Seq.fill(params.core_width) {Module(new GH_FIFO(FIFOParams (buffer_width, 16)))}
   val core_hang_up                              = u_buffer(params.core_width-1).io.status_threeslots
 
   // Connecting filters
-  val filter_inst_index                         = WireInit(VecInit(Seq.fill(params.core_width)(0.U(5.W))))
+  val filter_inst_index                         = WireInit(VecInit(Seq.fill(params.core_width)(0.U(8.W))))
   val filter_packet                             = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
   for (i <- 0 to params.core_width - 1) {
+    u_ght_filters(i).io.ic_crnt_target         := this.io.ic_crnt_target
     u_ght_filters(i).io.ght_ft_cfg_in          := this.io.ght_ft_cfg_in
     u_ght_filters(i).io.ght_ft_cfg_valid       := this.io.ght_ft_cfg_valid
     u_ght_filters(i).io.ght_ft_inst_in         := this.io.ght_ft_inst_in(i)
@@ -109,7 +111,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
 
   val new_packet                                = WireInit(VecInit(Seq.fill(params.core_width)(0.U(1.W))))
   val doPush                                    = WireInit(0.U(1.W))
-  val buffer_inst_type                          = WireInit(VecInit(Seq.fill(params.core_width)(0.U(5.W))))
+  val buffer_inst_type                          = WireInit(VecInit(Seq.fill(params.core_width)(0.U(8.W))))
   val buffer_packet                             = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
   val doPull                                    = WireInit(0.U(1.W))
   
@@ -141,9 +143,9 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   }
 
   val t_buffer                                  = RegInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
-  val t_inst_type                               = RegInit(VecInit(Seq.fill(params.core_width)(0.U(5.W))))
+  val t_inst_type                               = RegInit(VecInit(Seq.fill(params.core_width)(0.U(8.W))))
   val is_valid_t_buffer                         = WireInit(VecInit(Seq.fill(params.core_width)(0.U(1.W))))
-  val t_buffer_inst_type                        = WireInit(VecInit(Seq.fill(params.core_width)(0.U(5.W))))
+  val t_buffer_inst_type                        = WireInit(VecInit(Seq.fill(params.core_width)(0.U(8.W))))
   val t_buffer_packet                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
 
   val load_t_buffer                             = WireInit(0.U(1.W))
@@ -335,7 +337,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
 
   // Outputs
   io.ght_ft_inst_index                        := inst_type
-  io.packet_out                               := Cat(inst_type(4,0), packet(135,0)) // Added inst_type for checker cores
+  io.packet_out                               := Cat(inst_type, packet(135,0)) // Added inst_type for checker cores
   io.core_hang_up                             := core_hang_up | filter_stall
   io.ght_buffer_status                        := Cat(buffer_full(params.core_width-1), buffer_empty.reduce(_&_))
   io.ght_filters_empty                        := buffer_empty.reduce(_&_)

@@ -18,7 +18,7 @@ case class GHT_MAPPER_Params(
 class GHT_MAPPER_IO (params: GHT_MAPPER_Params) extends Bundle {
   val ght_mp_cfg_in                             = Input(UInt(32.W))
   val ght_mp_cfg_valid                          = Input(UInt(1.W))
-  val inst_index                                = Input(UInt(5.W))
+  val inst_index                                = Input(UInt(8.W))
   val inst_c                                    = Output(Vec(params.totalnumber_of_ses, UInt(1.W)))
 }
 
@@ -37,7 +37,7 @@ class GHT_MAPPER (val params: GHT_MAPPER_Params) extends Module with HasGHT_MAPP
   val u_ght_mtable                              = Module (new GHT_MTABLE(GHT_MTABLE_Params (params.totaltypes_of_insts, params.totalnumber_of_ses)))
   val inst_type_ses                             = WireInit(VecInit(Seq.fill(params.totaltypes_of_insts)(0.U(params.totalnumber_of_ses.W))))
   u_ght_mtable.io.cfg_map_SEs                  := this.io.ght_mp_cfg_in(31,16)
-  u_ght_mtable.io.cfg_map_inst_type            := this.io.ght_mp_cfg_in(8,4)
+  u_ght_mtable.io.cfg_map_inst_type            := this.io.ght_mp_cfg_in(11,4)
   u_ght_mtable.io.cfg_map_valid                := this.io.ght_mp_cfg_valid
   
   for (i <- 0 to params.totaltypes_of_insts - 1 ){
