@@ -137,7 +137,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val ght_monitor_satp_ppn    = RegInit(0.U(44.W))
     val ght_monitor_sys_mode    = RegInit(0.U(2.W))
     val has_monitor_target      = RegInit(0.U(1.W))
-    val num_activated_cores     = RegInit(0.U(8.W))
+    val num_activated_cores     = RegInit(GH_GlobalParams.GH_NUM_CORES.U(8.W))
 
     // Debug 
     val ECounter                = RegInit(0.U(64.W))

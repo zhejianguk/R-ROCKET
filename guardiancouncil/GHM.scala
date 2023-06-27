@@ -142,7 +142,7 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
     io.debug_bp                                  := Cat(warning, debug_backpressure_checkers) // [1]: CDC; [0]: Checker
 
     for (i <- 0 to params.number_of_little_cores - 1) {
-      io.icsl_counter(i)                         := io.ic_counter((1 << (4+i)) + 15, 1 << (4+i))
+      io.icsl_counter(i)                         := io.ic_counter((i+1)*16+15, (i+1)*16)
     }
     io.icsl_na                                   := Cat(io.ghe_revent_in.reverse.reduce(Cat(_,_)), zero)
   }

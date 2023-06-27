@@ -183,6 +183,7 @@ trait HasCoreIO extends HasTileParameters {
     val elu_deq = UInt(1.W).asInput
     val elu_sel = UInt(1.W).asInput
     val elu_status = UInt(2.W).asOutput
+    val icsl_status = UInt(2.W).asOutput
     //===== GuardianCouncil Function: End ====//
   }
 }

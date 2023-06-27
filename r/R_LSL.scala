@@ -39,6 +39,7 @@ class R_LSLIO(params: R_LSLParams) extends Bundle {
   val resp_replay = Output(UInt(1.W))
   val near_full = Output(UInt(1.W))
   val resp_data_csr = Output(UInt(params.xLen.W))
+  val if_empty = Output(UInt(1.W))
   // val resp_replay_csr = Output(UInt(1.W))
 }
 
@@ -128,4 +129,5 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   io.cdc_ready               := enq_valid || csr_enq_valid
   io.near_full               := u_channel.io.status_fiveslots | csr_channel_nearfull
   io.req_ready_csr           := !csr_channel_empty
+  io.if_empty                := csr_channel_empty & channel_empty
 }

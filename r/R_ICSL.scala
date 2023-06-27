@@ -22,6 +22,7 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val if_ret_special_pc                          = Output(UInt(1.W))
   val if_rh_cp_pc                                = Output(UInt(1.W))
   val if_check_completed                         = Input(UInt(1.W))
+  val icsl_status                                = Output(UInt(2.W))
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -95,4 +96,5 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   io.if_overtaking                              := if_overtaking
   io.if_ret_special_pc                          := if_ret_special_pc
   io.if_rh_cp_pc                                := if_rh_cp_pc
+  io.icsl_status                                := Mux(fsm_state === fsm_nonchecking, 1.U, 0.U)
 }

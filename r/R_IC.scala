@@ -31,6 +31,8 @@ class R_ICIO(params: R_ICParams) extends Bundle {
   val ic_status                                  = Output(Vec(params.totalnumber_of_cores, UInt(1.W)))
   val clear_ic_status                            = Input(Vec(params.totalnumber_of_cores, UInt(1.W)))
   val if_correct_process                         = Input(UInt((1.W)))
+  val num_of_checker                             = Input(UInt((8.W)))
+  val changing_num_of_checker                    = Input(UInt((1.W)))
 }
 
 trait HasR_ICIO extends BaseModule {
@@ -58,7 +60,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   val sch_result                                = WireInit(0.U(5.W))
   val u_sch_fp                                  = Module (new GHT_SCH_FP(GHT_SCH_Params (params.totalnumber_of_cores-1)))
   u_sch_fp.io.core_s                           := 1.U
-  u_sch_fp.io.core_e                           := (params.totalnumber_of_cores - 1).U
+  u_sch_fp.io.core_e                           := io.num_of_checker
   u_sch_fp.io.inst_c                           := 1.U // Holding the scheduling results
 
   for (i <- 1 to params.totalnumber_of_cores - 1) {
@@ -75,7 +77,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   val cooling_threshold                         = 5.U
   cooling_counter                              := Mux((fsm_state =/= fsm_cooling), 0.U, Mux(cooling_counter < cooling_threshold, cooling_counter + 1.U, cooling_counter))
   val if_cooled                                 = Mux((cooling_counter >= cooling_threshold) && !io.rsu_busy.asBool, true.B, false.B)
-  sch_reset                                    := Mux((fsm_state =/= fsm_reset), 0.U, 1.U)
+  sch_reset                                    := Mux((fsm_state === fsm_reset) || (io.changing_num_of_checker.asBool), 1.U, 0.U)
   if_dosnap                                    := Mux((fsm_state =/= fsm_snap), 0.U, 1.U)
   val if_t_and_na                               = Mux(((io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool) && (ic_status(sch_result).asBool)), 1.U, 0.U)
   val if_t_and_a                                = Mux(((io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool) && (!ic_status(sch_result).asBool)), 1.U, 0.U)

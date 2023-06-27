@@ -908,7 +908,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   csr.io.decode(0).inst := id_inst(0)
   csr.io.exception := wb_xcpt
   csr.io.cause := wb_cause
-  csr.io.retire := wb_valid
+  csr.io.retire := wb_valid || io.rocc.resp.valid // In GC, rocc_resp is always delivered with an instruction commitment
   csr.io.inst(0) := (if (usingCompressed) Cat(Mux(wb_reg_raw_inst(1, 0).andR, wb_reg_inst >> 16, 0.U), wb_reg_raw_inst(15, 0)) else wb_reg_inst)
   csr.io.interrupts := io.interrupts
   csr.io.hartid := io.hartid
@@ -1142,7 +1142,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_req_size              := Mux(checker_mode === 1.U, mem_reg_mem_size, 0.U)
   lsl_req_data              := Mux(checker_mode === 1.U, (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2)), 0.U)
   lsl_req_kill              := Mux(checker_mode === 1.U, (killm_common || mem_ldst_xcpt || fpu_kill_mem), 0.U)
-  
+  io.icsl_status            := Mux((icsl.io.icsl_status === 1.U) && (rsu_slave.io.rsu_status === 0.U) && (lsl.io.if_empty === 1.U), 1.U, 0.U)
+
   // don't let D$ go to sleep if we're probably going to use it soon
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall
 
