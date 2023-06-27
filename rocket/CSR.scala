@@ -291,6 +291,7 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle
   val fcsr_read = Bits(OUTPUT, 8)
   val pfarf_valid = Bits(INPUT, 1)
   val fcsr_in = Bits(INPUT, 8)
+  val r_exception = Bits(OUTPUT, 1)
   //===== GuardianCouncil Function: End ====//
 
   val vector = usingVector.option(new Bundle {
@@ -958,6 +959,7 @@ class CSRFile(
   io.gstatus.sd_rv32 := xLen == 32 && io.gstatus.sd
 
   val exception = insn_call || insn_break || io.exception
+  io.r_exception := exception
   assert(PopCount(insn_ret :: insn_call :: insn_break :: io.exception :: Nil) <= 1, "these conditions must be mutually exclusive")
 
   when (insn_wfi && !io.singleStep && !reg_debug) { reg_wfi := true }

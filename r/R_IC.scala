@@ -73,6 +73,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   // FSM to control the R_IC
   val fsm_reset :: fsm_presch :: fsm_sch :: fsm_cooling :: fsm_snap :: fsm_trans :: fsm_check :: fsm_postcheck :: Nil = Enum(8)
   val fsm_state                                 = RegInit(fsm_reset)
+  val fsm_ini                                   = RegInit(0.U(1.W))
   val cooling_counter                           = RegInit(0.U(4.W))
   val cooling_threshold                         = 5.U
   cooling_counter                              := Mux((fsm_state =/= fsm_cooling), 0.U, Mux(cooling_counter < cooling_threshold, cooling_counter + 1.U, cooling_counter))
@@ -81,6 +82,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   if_dosnap                                    := Mux((fsm_state =/= fsm_snap), 0.U, 1.U)
   val if_t_and_na                               = Mux(((io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool) && (ic_status(sch_result).asBool)), 1.U, 0.U)
   val if_t_and_a                                = Mux(((io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool) && (!ic_status(sch_result).asBool)), 1.U, 0.U)
+  fsm_ini                                      := Mux(fsm_state === fsm_reset, 1.U, Mux(fsm_state === fsm_presch, fsm_ini, 0.U))
 
 
   switch (fsm_state) {
@@ -111,7 +113,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
       }
-      fsm_state                                 := Mux(if_t_and_na_reg.asBool || io.ic_run_isax.asBool || io.ic_syscall_back.asBool, fsm_sch, fsm_presch)
+      fsm_state                                 := Mux(fsm_ini.asBool, Mux(io.ic_run_isax.asBool, fsm_sch, fsm_presch), Mux(if_t_and_na_reg.asBool || io.ic_syscall_back.asBool, fsm_sch, fsm_presch))      
     }
 
     is (fsm_sch){
@@ -184,7 +186,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       if_t_and_na_reg                           := Mux(if_t_and_na.asBool, 1.U, if_t_and_na_reg)
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U,  ic_status(i))
-        ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U,  Mux((crnt_target === i.U) && (io.if_correct_process.asBool), (ic_counter(i) + io.ic_incr), ic_counter(i)))
+        ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U,  Mux((crnt_target === i.U) && (io.if_correct_process.asBool) && (!io.ic_syscall.asBool), (ic_counter(i) + io.ic_incr), ic_counter(i)))
       }
       fsm_state                                 := Mux(io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool, fsm_postcheck, fsm_check)
     }
