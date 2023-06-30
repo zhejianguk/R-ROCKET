@@ -178,7 +178,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
 
   val zero                                      = WireInit(0.U(1.W))
   val one                                       = WireInit(1.U(1.W))
-  one                                           = Mux(io.ic_crnt_target(3,0) === 0.U, 0.U, 1.U)
+  one                                          := Mux(io.ic_crnt_target(3,0) === 0.U, 0.U, 1.U)
   io.ght_ft_inst_index                         := Mux(inst_index_reg =/= 0.U, Cat(one, io.ic_crnt_target(3,0), zero, inst_index_reg), 0.U)
   }
 
