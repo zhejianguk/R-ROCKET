@@ -247,6 +247,8 @@ trait HasGHnodes extends InstantiatesTiles { this: BaseSubsystem =>
 
 
   var tile_agg_packet_out_EPNodes                = Seq[BundleBridgeEphemeralNode[UInt]]()
+  var tile_report_fi_detection_EPNodes           = Seq[BundleBridgeEphemeralNode[UInt]]()
+  var tile_report_fi_detection_in_EPNodes        = Seq[BundleBridgeEphemeralNode[UInt]]()
   var tile_agg_buffer_full_in_EPNodes            = Seq[BundleBridgeEphemeralNode[UInt]]()
   var tile_agg_core_status_out_EPNodes           = Seq[BundleBridgeEphemeralNode[UInt]]()
 
@@ -501,6 +503,15 @@ trait CanAttachTile {
     val tile_agg_packet_out_EPNode = BundleBridgeEphemeralNode[UInt]()
     context.tile_agg_packet_out_EPNodes = context.tile_agg_packet_out_EPNodes :+ tile_agg_packet_out_EPNode
     tile_agg_packet_out_EPNode := domain.tile.agg_packet_out_SRNode
+
+    val tile_report_fi_detection_EPNode = BundleBridgeEphemeralNode[UInt]()
+    context.tile_report_fi_detection_EPNodes = context.tile_report_fi_detection_EPNodes :+ tile_report_fi_detection_EPNode
+    tile_report_fi_detection_EPNode := domain.tile.report_fi_detection_SRNode
+
+    val tile_report_fi_detection_in_EPNode = BundleBridgeEphemeralNode[UInt]()
+    context.tile_report_fi_detection_in_EPNodes = context.tile_report_fi_detection_in_EPNodes :+ tile_report_fi_detection_in_EPNode
+    domain.tile.report_fi_detection_in_SKNode := tile_report_fi_detection_in_EPNode
+
 
     val tile_agg_buffer_full_in_EPNode = BundleBridgeEphemeralNode[UInt]()
     context.tile_agg_buffer_full_in_EPNodes = context.tile_agg_buffer_full_in_EPNodes :+ tile_agg_buffer_full_in_EPNode

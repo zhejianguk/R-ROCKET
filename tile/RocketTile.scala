@@ -157,7 +157,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val packet_index = packet_in (143, 136)
   val ptype_fg = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 0.U)), 1.U, 0.U)
   val ptype_lsl = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 1.U)), 1.U, 0.U)
-  val ptype_rcu = Mux((packet_index(2) === 1.U), 1.U, 0.U)
+  val ptype_rcu = Mux((packet_index(2) === 1.U) && (s_or_r === 1.U), 1.U, 0.U)
   val arfs_if_CPS = Mux(ptype_rcu.asBool && (packet_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
 
 
@@ -273,6 +273,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
 
     // agg
     outer.agg_packet_out_SRNode.bundle := cmdRouter.get.io.agg_packet_out
+    outer.report_fi_detection_SRNode.bundle := cmdRouter.get.io.report_fi_detection_out
     cmdRouter.get.io.agg_buffer_full := outer.agg_buffer_full_in_SKNode.bundle
     outer.agg_core_status_SRNode.bundle := Mux(!s_or_r.asBool, cmdRouter.get.io.agg_core_status_out, core.io.icsl_status)
     outer.ght_sch_na_out_SRNode.bundle := cmdRouter.get.io.ght_sch_na_out
@@ -287,7 +288,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     /* R Features */
     cmdRouter.get.io.rsu_status_in := core.io.rsu_status
     cmdRouter.get.io.elu_status_in := core.io.elu_status
-    s_or_r := cmdRouter.get.io.s_or_r_out
+    s_or_r := cmdRouter.get.io.s_or_r_out(0)
     cmdRouter.get.io.ght_satp_ppn := core.io.ptw.ptbr.ppn
     cmdRouter.get.io.ght_sys_mode := core.io.ght_prv
     if_correct_process_bridge.io.in := cmdRouter.get.io.if_correct_process_out

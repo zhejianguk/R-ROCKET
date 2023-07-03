@@ -10,7 +10,8 @@ import chisel3.experimental.{BaseModule}
 case class GHT_FILTER_PRFS_Params(
   xlen: Int,
   packet_size: Int,
-  use_prfs: Boolean
+  use_prfs: Boolean,
+  id_filter: Int, 
 )
 
 //==========================================================
@@ -32,7 +33,11 @@ class GHT_FILTER_PRFS_IO (params: GHT_FILTER_PRFS_Params) extends Bundle {
   val ght_prfs_forward_stq                      = Output(Bool())
   val ght_prfs_forward_ftq                      = Output(Bool())
   val ght_prfs_forward_prf                      = Output(Bool())
-  val ic_crnt_target                            = Input(UInt(5.W)) 
+  val ic_crnt_target                            = Input(UInt(5.W))
+
+  val gtimer                                    = Input(UInt(62.W))
+  val gtimer_reset                              = Input(UInt(1.W))
+  val use_fi_mode                               = Input(UInt(1.W))
 }
 
 
@@ -168,11 +173,36 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   val amo_addr                                  = dp_ldst_reg
   val amo_data                                  = Mux(if_amo_sc, io.ght_prfs_rd, dp_ldst_data) // Revist: not fully correct, the sc.w should get the data from STQ, but this does not affect us
 
+  //==========================================================
+  // Fault Injection 
+  //==========================================================
+  val fi_counter                                = RegInit(0.U(5.W))
+  val fi_counter_tiny                           = RegInit(0.U(5.W))
+  val end_of_fi                                 = Mux(fi_counter === 10.U, 1.U, 0.U)
+  val incr_fi_counters                          = Mux(io.use_fi_mode.asBool && (inst_index_reg =/= 0.U), 1.U, 0.U)
+
+  fi_counter_tiny                              := Mux(io.gtimer_reset.asBool, 0.U, Mux(incr_fi_counters.asBool && !end_of_fi.asBool, fi_counter_tiny + 1.U, fi_counter_tiny))
+  fi_counter                                   := Mux(io.gtimer_reset.asBool, 0.U, Mux(incr_fi_counters.asBool && !end_of_fi.asBool && fi_counter_tiny === 31.U, fi_counter + 1.U, fi_counter))
+  val fi                                        = Mux(incr_fi_counters.asBool && !end_of_fi.asBool && fi_counter_tiny === 31.U, true.B, false.B)
+
+  val zero8                                     = WireInit(0.U(8.W))
+
+  /* Below is added for fault injection */
+  val if_id                                     = WireInit(0.U(8.W))
+  if_id                                        := params.id_filter.U
+  val fi_dp1                                    = Cat(if_id, io.gtimer(39,0), zero8, amo_addr)
+  val fi_dp2                                    = Cat(if_id, io.gtimer(39,0), zero8, dp_ldst_reg)
+  val fi_dp3                                    = Cat(if_id, io.gtimer(39,0), zero8, dp_jump_wire(61,0), jump_type)
+
+  val nfi_dp1                                   = amo_addr    // Without FI, should be Cat(amo_data, amo_addr)
+  val nfi_dp2                                   = dp_ldst_reg // Without FI, should be Cat(dp_ldst_data, dp_ldst_reg)
+  val nfi_dp3                                   = Cat(dp_jump_wire(61,0), jump_type) // Without FI, should be Cat(pc_reg_delay(29,0), inst_reg_delay, dp_jump_wire(63,0), jump_type)
+
   io.packet_out                                := MuxCase(0.U, 
                                                     Array((dp_sel_reg === 0.U) -> 0.U,
-                                                          (dp_sel_reg === 2.U) -> Mux((inst_index_reg =/= 0.U), Cat(amo_data, amo_addr), 0.U), // amo insts are treated as load instruction.
-                                                          (dp_sel_reg === 3.U) -> Mux((inst_index_reg =/= 0.U), Cat(dp_ldst_data, dp_ldst_reg), 0.U),
-                                                          (dp_sel_reg === 1.U) -> Mux((inst_index_reg =/= 0.U), Cat(pc_reg_delay(29,0), inst_reg_delay, dp_jump_wire(63,0), jump_type), 0.U)
+                                                          (dp_sel_reg === 2.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp1, nfi_dp1), 0.U), // amo insts are treated as load instruction.
+                                                          (dp_sel_reg === 3.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp2, nfi_dp2), 0.U),
+                                                          (dp_sel_reg === 1.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp3, nfi_dp3), 0.U)
                                                           )
                                                           )
 

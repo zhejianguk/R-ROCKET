@@ -61,6 +61,9 @@ class GHT_IO (params: GHTParams) extends Bundle {
   val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(8.W)))
   val rsu_merging                               = Input(UInt(1.W))
   val ic_crnt_target                            = Input(UInt(5.W))
+  val gtimer                                    = Input(UInt(62.W))
+  val gtimer_reset                              = Input(UInt(1.W))
+  val use_fi_mode                               = Input(UInt(1.W))
 }
 
 trait HasGHT_IO extends BaseModule {
@@ -104,6 +107,9 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
     u_ght_filters.io.ic_crnt_target             := io.ic_crnt_target
   }
   u_ght_filters.io.ght_stall                    := (this.io.ght_stall || (sch_hang === 1.U))
+  u_ght_filters.io.gtimer                       := io.gtimer
+  u_ght_filters.io.gtimer_reset                 := io.gtimer_reset
+  u_ght_filters.io.use_fi_mode                  := io.use_fi_mode
   this.io.ght_buffer_status                     := u_ght_filters.io.ght_buffer_status
   
   // configuration path

@@ -23,6 +23,9 @@ class GAGGIO(params: GAGGParams) extends Bundle {
 
   val sch_na_in                                  = Input(Vec(params.number_of_little_cores, UInt(1.W)))
   val sch_na_out                                 = Output(UInt(params.number_of_little_cores.W))
+  val fi_d                                       = Input(Vec(params.number_of_little_cores, UInt(57.W)))
+  val fi_d_out                                   = Output(UInt((params.number_of_little_cores * 57).W))
+
   val sch_do_refresh                             = Input(Vec(params.number_of_little_cores, UInt(32.W)))
   val sch_refresh_out                            = Output(Vec(params.number_of_little_cores, UInt(1.W)))
 
@@ -82,6 +85,7 @@ class GAGG (val params: GAGGParams)(implicit p: Parameters) extends LazyModule
     }
     io.sch_na_out                                := sch_na
     io.agg_no_packet_inflight                    := if_no_inflight_packets
+    io.fi_d_out                                  := io.fi_d.reverse.reduce(Cat(_,_))
   }
 }
 
@@ -106,6 +110,9 @@ object GAGGCore {
     }
 
     // Agg
+    var report_fi_detection_in_SKNodes             = Seq[BundleBridgeSink[UInt]]()
+    var report_fi_detection_out_SRNodes            = Seq[BundleBridgeSource[UInt]]()
+
     var agg_packet_in_SKNodes                      = Seq[BundleBridgeSink[UInt]]()
     var agg_buffer_full_out_SRNodes                = Seq[BundleBridgeSource[UInt]]()
     var agg_core_status_in_SKNodes                 = Seq[BundleBridgeSink[UInt]]()
@@ -115,6 +122,14 @@ object GAGGCore {
     var ghm_ght_sch_dorefresh_in_SKNodes           = Seq[BundleBridgeSink[UInt]]()
 
     for (i <- 0 to number_of_ghes-1) {
+      val report_fi_detection_in_SKNode            = BundleBridgeSink[UInt]()
+      report_fi_detection_in_SKNodes               = report_fi_detection_in_SKNodes :+ report_fi_detection_in_SKNode
+      report_fi_detection_in_SKNodes(i)           := subsystem.tile_report_fi_detection_EPNodes(i)
+
+      val report_fi_detection_out_SRNode           = BundleBridgeSource[UInt]()
+      report_fi_detection_out_SRNodes              = report_fi_detection_out_SRNodes :+ report_fi_detection_out_SRNode
+      subsystem.tile_report_fi_detection_in_EPNodes(i) := report_fi_detection_out_SRNodes(i)
+
       val agg_packet_in_SKNode                     = BundleBridgeSink[UInt]()
       agg_packet_in_SKNodes                        = agg_packet_in_SKNodes :+ agg_packet_in_SKNode
       agg_packet_in_SKNodes(i)                    := subsystem.tile_agg_packet_out_EPNodes(i)
@@ -160,6 +175,7 @@ object GAGGCore {
           // GHE is not connected to the big core
           agg_packet_out_SRNodes(i).bundle        := 0.U 
           agg_buffer_full_out_SRNodes(i).bundle   := 0.U
+          report_fi_detection_out_SRNodes(i).bundle := gagg.module.io.fi_d_out
         } else {// -1 big core
           agg_packet_out_SRNodes(i).bundle        := gagg.module.io.agg_packet_outs(i-1)
           gagg.module.io.agg_core_status(i-1)     := agg_core_status_in_SKNodes(i).bundle
@@ -168,6 +184,9 @@ object GAGGCore {
           agg_buffer_full_out_SRNodes(i).bundle   := gagg.module.io.agg_buffer_full(i-1)
           gagg.module.io.sch_na_in(i-1)           := ghm_ght_sch_na_in_SKNodes(i).bundle
           ghm_ghe_sch_refresh_out_SRNodes(i).bundle:= gagg.module.io.sch_refresh_out(i-1)
+          
+          gagg.module.io.fi_d(i-i)                := report_fi_detection_in_SKNodes(i).bundle
+          report_fi_detection_out_SRNodes(i).bundle := 0.U
         }
       }
       agg_empty_SRNode.bundle                     := gagg.module.io.agg_no_packet_inflight

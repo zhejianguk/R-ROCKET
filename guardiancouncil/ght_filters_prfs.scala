@@ -49,6 +49,9 @@ class GHT_FILTERS_PRFS_IO (params: GHT_FILTERS_PRFS_Params) extends Bundle {
   val core_r_arfs_index                         = Input(Vec(params.core_width, UInt(8.W)))
   val rsu_merging                               = Input(UInt(1.W))
   val ic_crnt_target                            = Input(UInt(5.W)) 
+  val gtimer                                    = Input(UInt(62.W))
+  val gtimer_reset                              = Input(UInt(1.W))
+  val use_fi_mode                               = Input(UInt(1.W))
 }
 
 
@@ -68,7 +71,11 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   val buffer_width                              = 8 + params.packet_size
 
 
-  val u_ght_filters                             = Seq.fill(params.core_width) {Module(new GHT_FILTER_PRFS(GHT_FILTER_PRFS_Params(params.xlen, params.packet_size, params.use_prfs)))}
+  // val u_ght_filters                             = Seq.fill(params.core_width) {Module(new GHT_FILTER_PRFS(GHT_FILTER_PRFS_Params(params.xlen, params.packet_size, params.use_prfs)))}
+  val u_ght_filters = Seq.tabulate(params.core_width) { id =>
+    Module(new GHT_FILTER_PRFS(GHT_FILTER_PRFS_Params(params.xlen, params.packet_size, params.use_prfs, id)))
+  }
+  
   val u_buffer                                  = Seq.fill(params.core_width) {Module(new GH_FIFO(FIFOParams (buffer_width, 16)))}
   val core_hang_up                              = u_buffer(params.core_width-1).io.status_threeslots
 
@@ -84,6 +91,10 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     u_ght_filters(i).io.ght_ft_newcommit_in    := this.io.ght_ft_newcommit_in(i)
     u_ght_filters(i).io.ght_ft_alu_in          := this.io.ght_ft_alu_in(i)
     u_ght_filters(i).io.ght_ft_is_rvc_in       := this.io.ght_ft_is_rvc_in(i)
+    u_ght_filters(i).io.gtimer                 := this.io.gtimer
+    u_ght_filters(i).io.gtimer_reset           := this.io.gtimer_reset
+    u_ght_filters(i).io.use_fi_mode            := this.io.use_fi_mode
+
     filter_inst_index(i)                       := u_ght_filters(i).io.ght_ft_inst_index
     filter_packet(i)                           := u_ght_filters(i).io.packet_out
     u_ght_filters(i).io.ght_prfs_rd            := this.io.ght_prfs_rd_ft(i)

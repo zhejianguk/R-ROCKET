@@ -60,6 +60,8 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val debug_bp_reset = Output(UInt(1.W))
 
   val agg_packet_out = Output(UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W))
+  val report_fi_detection_out = Output(UInt(57.W))
+  val fi_sel_out = Output(UInt(8.W))
   val agg_buffer_full = Input(UInt(1.W))
   val agg_core_status = Output(UInt(2.W))
   val ght_sch_na = Output(UInt(1.W))
@@ -78,18 +80,20 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val debug_bp_checker = Input(UInt(64.W))
   val debug_bp_cdc = Input(UInt(64.W))
   val debug_bp_filter = Input(UInt(64.W))
+  val fi_latency = Input(UInt(64.W))
 
   /* R Features */
   val t_value_out = Output(UInt(15.W))
   val icctrl_out = Output(UInt(4.W))
   val arf_copy_out = Output(UInt(1.W))
   val rsu_status_in = Input(UInt(2.W))
-  val s_or_r_out = Output(UInt(1.W))
+  val s_or_r_out = Output(UInt(2.W))
   val elu_data_in = Input(UInt(264.W))
   val elu_deq_out = Output(UInt(1.W))
   val elu_sel_out = Output(UInt(1.W))
   val record_pc_out = Output(UInt(1.W))
   val elu_status_in = Input(UInt(2.W))
+  val gtimer_reset_out = Output(UInt(1.W))
   //===== GuardianCouncil Function: End   ====//
 }
 
@@ -151,6 +155,7 @@ trait HasLazyRoCCModule extends CanHavePTWModule
       cmdRouter.io.debug_bp_reset_in := rocc.module.io.debug_bp_reset
 
       cmdRouter.io.agg_packet_in := rocc.module.io.agg_packet_out
+      cmdRouter.io.report_fi_detection_in := rocc.module.io.report_fi_detection_out
       rocc.module.io.agg_buffer_full := cmdRouter.io.agg_buffer_full
       cmdRouter.io.agg_core_status_in := rocc.module.io.agg_core_status
       cmdRouter.io.ght_sch_na_in := rocc.module.io.ght_sch_na
@@ -165,6 +170,7 @@ trait HasLazyRoCCModule extends CanHavePTWModule
       cmdRouter.io.s_or_r_in := rocc.module.io.s_or_r_out
       cmdRouter.io.arf_copy_in := rocc.module.io.arf_copy_out
       cmdRouter.io.record_pc_in := rocc.module.io.record_pc_out
+      cmdRouter.io.gtimer_reset_in := rocc.module.io.gtimer_reset_out
       rocc.module.io.rsu_status_in := cmdRouter.io.rsu_status_in
       rocc.module.io.ght_satp_ppn := cmdRouter.io.ght_satp_ppn
       rocc.module.io.ght_sys_mode := cmdRouter.io.ght_sys_mode
@@ -504,6 +510,8 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
 
     val agg_packet_out = Output(UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W))
     val agg_packet_in  = Input(UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W))
+    val report_fi_detection_out = Output(UInt(57.W))
+    val report_fi_detection_in  = Input(UInt(57.W))
     val agg_buffer_full = Input(UInt(1.W))
     val agg_core_status_out = Output(UInt(2.W))
     val agg_core_status_in = Input(UInt(2.W))
@@ -528,10 +536,12 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val arf_copy_in = Input(UInt(1.W))
     val record_pc_out = Output(UInt(1.W))
     val record_pc_in = Input(UInt(1.W))
+    val gtimer_reset_out = Output(UInt(1.W))
+    val gtimer_reset_in = Input(UInt(1.W))
 
     val rsu_status_in = Input(UInt(2.W))
-    val s_or_r_out = Output(UInt(1.W))
-    val s_or_r_in = Input(UInt(1.W))
+    val s_or_r_out = Output(UInt(2.W))
+    val s_or_r_in = Input(UInt(2.W))
     val ght_satp_ppn  = Input(UInt(44.W))
     val ght_sys_mode  = Input(UInt(2.W))
     val elu_data_in = Input(UInt(264.W))
@@ -561,6 +571,7 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.debug_bp_reset := io.debug_bp_reset_in
 
   io.agg_packet_out := io.agg_packet_in
+  io.report_fi_detection_out := io.report_fi_detection_in
   io.agg_core_status_out := io.agg_core_status_in
   io.ght_sch_na_out := io.ght_sch_na_in
   io.ght_sch_dorefresh_out := io.ght_sch_dorefresh_in
@@ -572,6 +583,7 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.t_value_out := io.t_value_in
   io.arf_copy_out := io.arf_copy_in
   io.record_pc_out := io.record_pc_in
+  io.gtimer_reset_out := io.gtimer_reset_in
   io.s_or_r_out := io.s_or_r_in
   io.elu_deq_out := io.elu_deq_in
   io.elu_sel_out := io.elu_sel_in
@@ -640,9 +652,13 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val t_value_in = Input(UInt(15.W))
     val arf_copy_out = Output(UInt(1.W))
     val arf_copy_in = Input(UInt(1.W))
-    val s_or_r_out = Output(UInt(1.W))
-    val s_or_r_in = Input(UInt(1.W))
-
+    val s_or_r_out = Output(UInt(2.W))
+    val s_or_r_in = Input(UInt(2.W))
+    val gtimer_reset_out = Output(UInt(1.W))
+    val gtimer_reset_in = Input(UInt(1.W))
+    val fi_sel_out = Output(UInt(8.W))
+    val fi_sel_in  = Input(UInt(8.W))
+    val fi_latency = Input(UInt(64.W))
     val rsu_status_in = Input(UInt(2.W))
     //===== GuardianCouncil Function: End   ====//
   }
@@ -672,6 +688,8 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
 
   /* R Features */
   io.icctrl_out := io.icctrl_in
+  io.gtimer_reset_out := io.gtimer_reset_in
+  io.fi_sel_out := io.fi_sel_in
   io.t_value_out := io.t_value_in
   io.s_or_r_out := io.s_or_r_in
   io.arf_copy_out := io.arf_copy_in
