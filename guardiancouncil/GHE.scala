@@ -332,6 +332,6 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
 
     /* Record the FI */
     val detecting_an_fault     = Mux(channel_deq_ready.asBool && (channel_deq_data(111,72) =/= 0.U), true.B, false.B)
-    io.report_fi_detection_out:= Mux(detecting_an_fault.asBool, Cat(1.U, channel_deq_data(127, 72), 0.U), 0.U)
+    io.report_fi_detection_out:= Mux(detecting_an_fault.asBool, Cat(1.U, channel_deq_data(127, 72)), 0.U)
     io.fi_sel_out             := Mux(doFIRead, rs1_val(7,0), 0.U)
 }

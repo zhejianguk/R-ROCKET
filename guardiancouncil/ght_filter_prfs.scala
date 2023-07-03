@@ -178,21 +178,21 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   //==========================================================
   val fi_counter                                = RegInit(0.U(5.W))
   val fi_counter_tiny                           = RegInit(0.U(5.W))
-  val end_of_fi                                 = Mux(fi_counter === 10.U, 1.U, 0.U)
+  val end_of_fi                                 = Mux(fi_counter === 15.U, 1.U, 0.U)
   val incr_fi_counters                          = Mux(io.use_fi_mode.asBool && (inst_index_reg =/= 0.U), 1.U, 0.U)
 
   fi_counter_tiny                              := Mux(io.gtimer_reset.asBool, 0.U, Mux(incr_fi_counters.asBool && !end_of_fi.asBool, fi_counter_tiny + 1.U, fi_counter_tiny))
   fi_counter                                   := Mux(io.gtimer_reset.asBool, 0.U, Mux(incr_fi_counters.asBool && !end_of_fi.asBool && fi_counter_tiny === 31.U, fi_counter + 1.U, fi_counter))
   val fi                                        = Mux(incr_fi_counters.asBool && !end_of_fi.asBool && fi_counter_tiny === 31.U, true.B, false.B)
 
-  val zero8                                     = WireInit(0.U(8.W))
+  val zero8                                     = WireInit(0.U(4.W))
 
   /* Below is added for fault injection */
-  val if_id                                     = WireInit(0.U(8.W))
+  val if_id                                     = WireInit(0.U(4.W))
   if_id                                        := params.id_filter.U
-  val fi_dp1                                    = Cat(if_id, io.gtimer(39,0), zero8, amo_addr)
-  val fi_dp2                                    = Cat(if_id, io.gtimer(39,0), zero8, dp_ldst_reg)
-  val fi_dp3                                    = Cat(if_id, io.gtimer(39,0), zero8, dp_jump_wire(61,0), jump_type)
+  val fi_dp1                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, amo_addr)
+  val fi_dp2                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, dp_ldst_reg)
+  val fi_dp3                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, dp_jump_wire(61,0), jump_type)
 
   val nfi_dp1                                   = amo_addr    // Without FI, should be Cat(amo_data, amo_addr)
   val nfi_dp2                                   = dp_ldst_reg // Without FI, should be Cat(dp_ldst_data, dp_ldst_reg)

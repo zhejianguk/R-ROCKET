@@ -496,7 +496,7 @@ trait CanAttachTile {
     context.tile_ghe_event_out_EPNodes = context.tile_ghe_event_out_EPNodes :+ tile_ghe_event_out_EPNode
     tile_ghe_event_out_EPNode := domain.tile.ghe_event_out_SRNode
 
-   val tile_ghe_revent_out_EPNode = BundleBridgeEphemeralNode[UInt]()
+    val tile_ghe_revent_out_EPNode = BundleBridgeEphemeralNode[UInt]()
     context.tile_ghe_revent_out_EPNodes = context.tile_ghe_revent_out_EPNodes :+ tile_ghe_revent_out_EPNode
     tile_ghe_revent_out_EPNode := domain.tile.ghe_revent_out_SRNode
 

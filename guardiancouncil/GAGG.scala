@@ -185,7 +185,7 @@ object GAGGCore {
           gagg.module.io.sch_na_in(i-1)           := ghm_ght_sch_na_in_SKNodes(i).bundle
           ghm_ghe_sch_refresh_out_SRNodes(i).bundle:= gagg.module.io.sch_refresh_out(i-1)
           
-          gagg.module.io.fi_d(i-i)                := report_fi_detection_in_SKNodes(i).bundle
+          gagg.module.io.fi_d(i-1)                := report_fi_detection_in_SKNodes(i).bundle
           report_fi_detection_out_SRNodes(i).bundle := 0.U
         }
       }

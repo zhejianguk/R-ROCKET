@@ -33,7 +33,7 @@ class R_FIU (val params: R_FIUParams) extends Module with HasR_FIUIO {
   for (i <- 0 until params.totalnumber_of_checkers) {
     fi_valid(i)                          := io.fi_d(i)(56)
     fi_latency(i)                        := Mux(fi_valid(i).asBool, (io.fi_d(i)(39,0) - io.gtimer(39,0)), 0.U)
-    fi_index(i)                          := Mux(fi_valid(i).asBool, (io.fi_d(i)(43,40)), 0.U)
+    fi_index(i)                          := Mux(fi_valid(i).asBool, (io.fi_d(i)(45,40)), 0.U)
 
     // Make sure the index is within range
     when (fi_valid(i).asBool && (fi_index(i) < params.nEntries.U)){
