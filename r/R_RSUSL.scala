@@ -134,7 +134,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   io.rsu_status                                  := rsu_status
 
-  val u_channel                                   = Module (new GH_FIFO(FIFOParams((4*params.xLen+8), 33)))
+  val u_channel                                   = Module (new GH_FIFO(FIFOParams((4*params.xLen+8), 4)))
   val channel_enq_valid                           = WireInit(false.B)
   val channel_enq_data                            = WireInit(0.U((4*params.xLen+8).W))
   val channel_deq_ready                           = WireInit(false.B)
