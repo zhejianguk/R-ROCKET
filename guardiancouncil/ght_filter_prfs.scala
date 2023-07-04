@@ -185,7 +185,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   fi_counter                                   := Mux(io.gtimer_reset.asBool, 0.U, Mux(incr_fi_counters.asBool && !end_of_fi.asBool && fi_counter_tiny === 31.U, fi_counter + 1.U, fi_counter))
   val fi                                        = Mux(incr_fi_counters.asBool && !end_of_fi.asBool && fi_counter_tiny === 31.U, true.B, false.B)
 
-  val zero8                                     = WireInit(0.U(4.W))
+  val zero8                                     = WireInit(0.U(8.W))
 
   /* Below is added for fault injection */
   val if_id                                     = WireInit(0.U(4.W))
