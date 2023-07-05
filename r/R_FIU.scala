@@ -27,13 +27,13 @@ trait HasR_FIUIO extends BaseModule {
 class R_FIU (val params: R_FIUParams) extends Module with HasR_FIUIO {
   val fi_valid                            = WireInit(VecInit(Seq.fill(params.totalnumber_of_checkers)(0.U(1.W))))
   val fi_latency                          = WireInit(VecInit(Seq.fill(params.totalnumber_of_checkers)(0.U(40.W))))
-  val fi_index                            = WireInit(VecInit(Seq.fill(params.totalnumber_of_checkers)(0.U(4.W))))
+  val fi_index                            = WireInit(VecInit(Seq.fill(params.totalnumber_of_checkers)(0.U(8.W))))
   val latency                             = RegInit(VecInit(Seq.fill(params.nEntries)(0.U(40.W))))
   
   for (i <- 0 until params.totalnumber_of_checkers) {
     fi_valid(i)                          := io.fi_d(i)(56)
-    fi_latency(i)                        := Mux(fi_valid(i).asBool, (io.fi_d(i)(39,0) - io.gtimer(39,0)), 0.U)
-    fi_index(i)                          := Mux(fi_valid(i).asBool, (io.fi_d(i)(45,40)), 0.U)
+    fi_latency(i)                        := Mux(fi_valid(i).asBool, (io.gtimer(39,0) - io.fi_d(i)(39,0)), 0.U)
+    fi_index(i)                          := Mux(fi_valid(i).asBool, (io.fi_d(i)(47,40)), 0.U)
 
     // Make sure the index is within range
     when (fi_valid(i).asBool && (fi_index(i) < params.nEntries.U)){
