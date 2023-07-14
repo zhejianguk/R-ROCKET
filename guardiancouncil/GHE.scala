@@ -297,7 +297,6 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     io.ght_sch_dorefresh       := Mux(doRefreshSch, rs1_val(31, 0), 0.U)
     io.ght_sch_na              := channel_sch_na
 
-    /*
     val u_pmc                  = Module (new GHE_HAPMC(GHE_HAPMC_Params (xLen)))
     val pmc_active_reg         = RegInit(0.U(1.W))
     when (doHA){
@@ -312,7 +311,6 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     u_pmc.io.msgq_data        := channel_deq_data(63,0)
     doHAPull                  := u_pmc.io.msgq_pop
     ha_rslt                   := u_pmc.io.ghe_hapmc_rslt
-    */
 
 
     /* R Features */
