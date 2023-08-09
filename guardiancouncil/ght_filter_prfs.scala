@@ -194,9 +194,13 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   val fi_dp2                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, dp_ldst_reg)
   val fi_dp3                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, dp_jump_wire(61,0), jump_type)
 
-  val nfi_dp1                                   = amo_addr    // Without FI, should be Cat(amo_data, amo_addr)
-  val nfi_dp2                                   = dp_ldst_reg // Without FI, should be Cat(dp_ldst_data, dp_ldst_reg)
-  val nfi_dp3                                   = Cat(dp_jump_wire(61,0), jump_type) // Without FI, should be Cat(pc_reg_delay(29,0), inst_reg_delay, dp_jump_wire(63,0), jump_type)
+  // val nfi_dp1                                   = amo_addr
+  // val nfi_dp2                                   = dp_ldst_reg
+  // val nfi_dp3                                   = Cat(dp_jump_wire(61,0), jump_type)
+  
+  val nfi_dp1                                   = Cat(amo_data, amo_addr)
+  val nfi_dp2                                   = Cat(dp_ldst_data, dp_ldst_reg)
+  val nfi_dp3                                   = Cat(pc_reg_delay(29,0), inst_reg_delay, dp_jump_wire(63,0), jump_type)
 
   io.packet_out                                := MuxCase(0.U, 
                                                     Array((dp_sel_reg === 0.U) -> 0.U,
