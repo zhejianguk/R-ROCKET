@@ -796,7 +796,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
   val rsu_slave = Module(new R_RSUSL(R_RSUSLParams(xLen, 32)))
-  val lsl = Module(new R_LSL(R_LSLParams(512, xLen)))
+  val lsl = Module(new R_LSL(R_LSLParams(500, xLen)))
   val icsl = Module(new R_ICSL(R_ICSLParams(16)))
   val arfs_shadow = Reg(Vec(32, UInt(xLen.W)))
 
@@ -872,7 +872,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_req_ready_csr := lsl.io.req_ready_csr
 
   // Instantiate ELU
-  val elu = Module(new R_ELU(R_ELUParams(8, xLen, 40)))
+  val elu = Module(new R_ELU(R_ELUParams(4, xLen, 40)))
   elu.io.lsl_req_valid := lsl_req_valid
   elu.io.lsl_req_addr := lsl_req_addr
   elu.io.lsl_req_cmd := lsl_req_cmd

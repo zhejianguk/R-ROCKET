@@ -96,7 +96,7 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
                                           )
                                           
   // Revisit: ELU does not handle overflow, as it should rarely happen
-  val u_channel               = Module (new GH_FIFO(FIFOParams((2*params.xLen+3*params.wAddr), params.nEntries)))
+  val u_channel               = Module (new GH_MemFIFO(FIFOParams((2*params.xLen+3*params.wAddr), params.nEntries)))
   val channel_enq_valid       = WireInit(false.B)
   val channel_enq_data        = WireInit(0.U((2*params.xLen+3*params.wAddr).W))
   val channel_deq_ready       = WireInit(false.B)
