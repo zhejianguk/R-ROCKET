@@ -1092,6 +1092,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.r_farf_bits := rsu_slave.io.farfs_out
   io.fpu.r_farf_idx := rsu_slave.io.arfs_idx_out
   io.fpu.r_farf_valid := rsu_slave.io.arfs_valid_out
+  io.fpu.r_if_overtaking := icsl_if_overtaking
 
   /* R Feature --- LSL */
   /*

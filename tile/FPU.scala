@@ -207,6 +207,7 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val r_farf_bits = Input(UInt(64.W))
   val r_farf_idx = Input(UInt(8.W))
   val r_farf_valid = Input(UInt(1.W))
+  val r_if_overtaking = Input(UInt(1.W))
   val farfs = Output(Vec(32, UInt(64.W)))
   val keep_clock_enabled = Bool(INPUT)
 }
@@ -800,7 +801,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     io.farfs(i) := ieee(regfile(i))
   }
 
-  when (load_wb) {
+  when (load_wb && (!io.r_if_overtaking.asBool)) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
     regfile(load_wb_tag) := wdata
     assert(consistent(wdata))
@@ -944,7 +945,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   val wtypeTag = Mux(divSqrt_wen, divSqrt_typeTag, wbInfo(0).typeTag)
   val wdata = box(Mux(divSqrt_wen, divSqrt_wdata, (pipes.map(_.res.data): Seq[UInt])(wbInfo(0).pipeid)), wtypeTag)
   val wexc = (pipes.map(_.res.exc): Seq[UInt])(wbInfo(0).pipeid)
-  when ((!wbInfo(0).cp && wen(0)) || divSqrt_wen) {
+  when (((!wbInfo(0).cp && wen(0)) || divSqrt_wen) && (!io.r_if_overtaking.asBool)) {
     assert(consistent(wdata))
     regfile(waddr) := wdata
     if (enableCommitLog) {
