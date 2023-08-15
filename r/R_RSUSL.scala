@@ -123,8 +123,8 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   arf_addr_ECP                                   := Mux(io.do_cp_check.asBool, checking_counter, 0.U)
   farf_addr_ECP                                  := Mux(io.do_cp_check.asBool, checking_counter, 0.U)
-  arf_data_ECP                                   := arfs_ss.read(arf_addr_ECP, io.do_cp_check.asBool)
-  farf_data_ECP                                  := farfs_ss.read(farf_addr_ECP,io.do_cp_check.asBool)
+  arf_data_ECP                                   := arfs_ss_ECP.read(arf_addr_ECP, io.do_cp_check.asBool)
+  farf_data_ECP                                  := farfs_ss_ECP.read(farf_addr_ECP,io.do_cp_check.asBool)
 
 
   when ((io.copy_arfs === 0x01.U) && (apply_snapshot === 0.U)) {
