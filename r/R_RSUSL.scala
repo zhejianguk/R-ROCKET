@@ -53,6 +53,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   /* Loading snapshot from RSU Master */
   val arfs_ss                                     = SyncReadMem(2*(params.numARFS+1), UInt(params.xLen.W))
   val farfs_ss                                    = SyncReadMem(2*(params.numARFS+1), UInt(params.xLen.W))
+  val pcarfs_ss                                   = RegInit(0.U(40.W))
 
   val if_RSU_packet                               = WireInit(0.U(1.W))
   val packet_valid                                = RegInit(0.U(1.W)) 
@@ -87,7 +88,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
     arfs_ss.write(packet_index_ECP + epc_offside, packet_arfs_ECP)
     farfs_ss.write(packet_index_ECP + epc_offside, packet_farfs_ECP)
   }
-
+  pcarfs_ss                                      := Mux(packet_valid.asBool && (packet_index === 0x20.U), packet_arfs(39,0), pcarfs_ss)
   rsu_status                                     := Mux(io.clear_ic_status.asBool, 0.U, Mux(packet_index === 0x20.U, 1.U, Mux(packet_index_ECP === 0x20.U, 3.U, rsu_status)))
 
   /* Applying snapshot to the core */
@@ -105,10 +106,10 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   apply_snapshot_memdelay                        := apply_snapshot
   apply_counter_memdelay                         := apply_counter
-  arf_addr                                       := Mux(apply_snapshot.asBool, apply_counter, Mux(do_check.asBool, checking_counter + epc_offside, 0.U))
-  farf_addr                                      := Mux(apply_snapshot.asBool, apply_counter, Mux(do_check.asBool, checking_counter + epc_offside, 0.U))
-  arf_data                                       := arfs_ss.read(arf_addr, (apply_snapshot|do_check).asBool)
-  farf_data                                      := farfs_ss.read(farf_addr, (apply_snapshot|do_check).asBool)
+  arf_addr                                       := Mux(apply_snapshot.asBool, apply_counter, Mux(io.do_cp_check.asBool, checking_counter + epc_offside, 0.U))
+  farf_addr                                      := Mux(apply_snapshot.asBool, apply_counter, Mux(io.do_cp_check.asBool, checking_counter + epc_offside, 0.U))
+  arf_data                                       := arfs_ss.read(arf_addr, (apply_snapshot|io.do_cp_check).asBool)
+  farf_data                                      := farfs_ss.read(farf_addr, (apply_snapshot|io.do_cp_check).asBool)
 
   when ((io.copy_arfs === 0x01.U) && (apply_snapshot === 0.U)) {
     apply_snapshot                               := 1.U
@@ -126,7 +127,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   io.arfs_idx_out                                := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay =/= 0x20.U)), apply_counter_memdelay, 0.U)
   io.arfs_valid_out                              := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay =/= 0x20.U)), 1.U, 0.U)
 
-  io.pcarf_out                                   := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), arf_data, 0.U)
+  io.pcarf_out                                   := pcarfs_ss
   io.fcsr_out                                    := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), farf_data, 0.U)
   io.pfarf_valid_out                             := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), 1.U, 0.U)
   io.cdc_ready                                   := packet_valid | packet_valid_ECP
