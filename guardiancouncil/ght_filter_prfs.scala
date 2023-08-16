@@ -57,7 +57,8 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   val opcode                                    = WireInit(0.U(7.W))
   val pc                                        = WireInit(0.U(32.W))
   val is_rvc                                    = WireInit(0.U(1.W))
-
+  val is_rvc_msb                                = WireInit(0.U(7.W))
+  val zeros_6bits                               = WireInit(0.U(6.W))
 
   val inst_reg                                  = RegInit(0.U(32.W))
   val func_reg                                  = RegInit(0.U(3.W))
@@ -75,6 +76,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   opcode                                       := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_inst_in(6,0), 0x0.U)
   pc                                           := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_pc_in(31,0), 0x0.U)
   is_rvc                                       := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_is_rvc_in, 0x0.U)
+  is_rvc_msb                                   := Mux(is_rvc.asBool, Cat(zeros_6bits, inst(15)), 0.U)
 
   inst_reg                                     := inst
   func_reg                                     := func
@@ -92,7 +94,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   u_ght_ftable.io.cfg_ref_inst_valid           := this.io.ght_ft_cfg_valid
   u_ght_ftable.io.inst_newcommit               := this.io.ght_ft_newcommit_in
   u_ght_ftable.io.inst_in_func                 := func
-  u_ght_ftable.io.inst_in_opcode               := opcode
+  u_ght_ftable.io.inst_in_opcode               := opcode | (is_rvc_msb << 2)
   u_ght_ftable.io.inst_is_rvc                  := is_rvc
 
   val inst_index                                = WireInit(0.U(2.W))
