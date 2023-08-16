@@ -86,7 +86,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
 
 
   switch (fsm_state) {
-    is (fsm_reset){
+    is (fsm_reset){ // 000
       ctrl                                      := 2.U
       crnt_target                               := 0.U
       crnt_mask                                 := 0.U
@@ -101,7 +101,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       fsm_state                                 := fsm_presch
     }
 
-    is (fsm_presch){
+    is (fsm_presch){ // 001
       ctrl                                      := 2.U
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
@@ -116,7 +116,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       fsm_state                                 := Mux(fsm_ini.asBool, Mux(io.ic_run_isax.asBool, fsm_sch, fsm_presch), Mux(if_t_and_na_reg.asBool || io.ic_syscall_back.asBool, fsm_sch, fsm_presch))      
     }
 
-    is (fsm_sch){
+    is (fsm_sch){ // 010
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
@@ -131,7 +131,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       fsm_state                                 := Mux(!ic_status(sch_result).asBool, fsm_cooling, fsm_sch)
     }
 
-    is (fsm_cooling){
+    is (fsm_cooling){ // 011
       ctrl                                      := ctrl
       crnt_target                               := Mux(if_cooled, nxt_target, crnt_target)
       crnt_mask                                 := crnt_mask
@@ -146,7 +146,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       fsm_state                                 := Mux(if_cooled, fsm_snap, fsm_cooling)
     }
 
-    is (fsm_snap){
+    is (fsm_snap){ // 100
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
       crnt_mask                                 := Cat(ctrl, crnt_target)
@@ -161,7 +161,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       fsm_state                                 := fsm_trans
     }
 
-    is (fsm_trans){ // Do we really need a signal to transmit the snapshot?
+    is (fsm_trans){ // 101 Do we really need a signal to transmit the snapshot? 
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
@@ -176,7 +176,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       fsm_state                                 := Mux(ctrl === 3.U, Mux(!io.rsu_busy.asBool, fsm_reset, fsm_trans), Mux(ctrl === 1.U, fsm_presch, fsm_check))
     }
 
-    is (fsm_check){
+    is (fsm_check){ // 110
       ctrl                                      := Mux(io.ic_exit_isax.asBool, 3.U, Mux(io.ic_syscall.asBool || if_t_and_na.asBool, 1.U, Mux(if_t_and_a.asBool, 0.U, ctrl)))
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask

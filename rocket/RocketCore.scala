@@ -836,7 +836,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl.io.if_correct_process := io.if_correct_process
   checker_mode := icsl.io.icsl_checkermode
   io.clear_ic_status := icsl.io.clear_ic_status
-  icsl_if_overtaking := icsl.io.if_overtaking
+  icsl_if_overtaking := icsl.io.if_overtaking | rsu_slave.io.core_hang_up
   icsl_if_ret_special_pc := icsl.io.if_ret_special_pc
   val returned_to_special_address_valid = Wire(Bool())
   icsl.io.returned_to_special_address_valid := returned_to_special_address_valid
