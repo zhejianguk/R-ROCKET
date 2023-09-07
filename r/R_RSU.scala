@@ -4,6 +4,11 @@ import chisel3._
 import chisel3.util._
 import chisel3.experimental.{BaseModule}
 
+//===== GuardianCouncil Function: Start ====//
+import freechips.rocketchip.guardiancouncil._
+//===== GuardianCouncil Function: End   ====//
+
+
 case class R_RSUParams(
   xLen: Int,
   numARFS: Int,

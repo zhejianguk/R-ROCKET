@@ -16,6 +16,7 @@ import scala.collection.mutable.ArrayBuffer
 
 //===== GuardianCouncil Function: Start ====//
 import freechips.rocketchip.r._
+import freechips.rocketchip.guardiancouncil._
 //===== GuardianCouncil Function: End   ====//
 
 
