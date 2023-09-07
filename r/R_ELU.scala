@@ -49,14 +49,14 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
 
   val if_amo                  = WireInit(false.B)
   if_amo                     := (io.wb_inst(6,0) === 0x2F.U) && ((io.wb_inst(14,12) === 0x2.U) || (io.wb_inst(14,12) === 0x3.U))
-  val if_amo_sc               = if_amo && (io.wb_inst(31,27) === 0x03.U)
+  val if_amo_sc               = if_amo && ((io.wb_inst(31,27) === 0x03.U) || (io.wb_inst(31,27) === 0x01.U))
 
   ld_valid_reg               := !io.lsl_req_kill.asBool && io.lsl_req_ready.asBool && io.lsl_req_valid.asBool && ((io.lsl_req_cmd === 0x01.U) || (io.lsl_req_cmd === 0x03.U))
   ld_valid                   := ld_valid_reg && !if_amo_sc
   st_valid                   := !io.lsl_req_kill.asBool && io.lsl_req_ready.asBool && io.lsl_req_valid.asBool && (io.lsl_req_cmd === 0x02.U)
   req_addr_reg               := io.lsl_req_addr
   req_data_reg               := io.lsl_req_data
-  size                       := io.lsl_req_size(0)
+  size                       := io.lsl_req_size
 
   val zeros_32bits            = WireInit(0.U(32.W))
   val zeros_48bits            = WireInit(0.U(48.W))
@@ -71,23 +71,24 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
                                           )
 
   resp_data_wire             := MuxCase(0.U, 
-                                  Array((size === 3.U)      -> io.lsl_resp_data,
-                                        (size === 2.U)      -> Cat(zeros_32bits, io.lsl_resp_data(31,0)),
-                                        (size === 1.U)      -> Cat(zeros_48bits, io.lsl_resp_data(15,0)),
-                                        (size === 0.U)      -> Cat(zeros_56bits, io.lsl_resp_data(7,0))
+                                  Array(((size === 3.U) || (!st_valid))     -> io.lsl_resp_data,
+                                        (size === 2.U)                      -> Cat(zeros_32bits, io.lsl_resp_data(31,0)),
+                                        (size === 1.U)                      -> Cat(zeros_48bits, io.lsl_resp_data(15,0)),
+                                        (size === 0.U)                      -> Cat(zeros_56bits, io.lsl_resp_data(7,0))
                                         )
                                         )
 
   val err_ld                  = WireInit(false.B)
   val err_st                  = WireInit(false.B)
-  err_ld                     := Mux(ld_valid && (req_addr_reg =/= io.lsl_resp_addr), true.B, false.B)
-  err_st                     := Mux(st_valid && ((req_addr_reg =/= io.lsl_resp_addr) || (req_data_wire =/= resp_data_wire)), true.B, false.B)
+  err_ld                     := Mux(ld_valid && (req_addr_reg(11,0) =/= io.lsl_resp_addr(11,0)), true.B, false.B)
+  err_st                     := Mux(st_valid && ((req_addr_reg(11,0) =/= io.lsl_resp_addr(11,0)) || (req_data_wire =/= resp_data_wire)), true.B, false.B)
 
   val err_log_ld              = WireInit(0.U((2*params.xLen + 3*params.wAddr).W))
   val err_log_st              = WireInit(0.U((2*params.xLen + 3*params.wAddr).W))
   val err_log                 = WireInit(0.U((2*params.xLen + 3*params.wAddr).W))
+  val useless_ones            = WireInit(0x77777777.U(params.xLen.W))
 
-  err_log_ld                 := Cat(io.wb_pc, resp_data_wire, 0x7777777.U, io.lsl_resp_addr, req_addr_reg) // load data is not compared
+  err_log_ld                 := Cat(io.wb_pc, resp_data_wire, useless_ones, io.lsl_resp_addr, req_addr_reg) // load data is not compared
   err_log_st                 := Cat(io.wb_pc, resp_data_wire, req_data_wire, io.lsl_resp_addr, req_addr_reg)
   err_log                    := MuxCase(0.U, 
                                     Array(err_ld              -> err_log_ld,
@@ -118,4 +119,11 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
   channel_deq_ready          := io.elu_deq
   io.elu_data                := channel_deq_data
   io.elu_status              := ~channel_empty
+
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (err_ld | err_st) {
+        printf(midas.targetutils.SynthesizePrintf("ELU: an error is detected! [req_addr = %x], [resp_addr = %x], [req_data = %x], [resp_data = %x]. \n", 
+        req_addr_reg, io.lsl_resp_addr, Mux(err_ld, useless_ones, req_data_wire), resp_data_wire))
+    }
+  }
 }

@@ -59,6 +59,8 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   val is_rvc                                    = WireInit(0.U(1.W))
   val is_rvc_msb                                = WireInit(0.U(7.W))
   val zeros_6bits                               = WireInit(0.U(6.W))
+  val zeros_5bits                               = WireInit(0.U(5.W))
+
 
   val inst_reg                                  = RegInit(0.U(32.W))
   val func_reg                                  = RegInit(0.U(3.W))
@@ -73,7 +75,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
 
   inst                                         := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_inst_in, 0x0.U)
   func                                         := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_inst_in(14, 12), 0x0.U)
-  opcode                                       := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_inst_in(6,0), 0x0.U)
+  opcode                                       := Mux((io.ght_ft_newcommit_in === true.B), Mux(io.ght_ft_is_rvc_in.asBool, Cat(zeros_5bits, io.ght_ft_inst_in(1,0)), io.ght_ft_inst_in(6,0)), 0x0.U)
   pc                                           := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_pc_in(31,0), 0x0.U)
   is_rvc                                       := Mux((io.ght_ft_newcommit_in === true.B), io.ght_ft_is_rvc_in, 0x0.U)
   is_rvc_msb                                   := Mux(is_rvc.asBool, Cat(zeros_6bits, inst(15)), 0.U)
@@ -171,7 +173,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
 
   val if_amo                                    = WireInit(false.B)
   if_amo                                       := (inst_reg_delay(6,0) === 0x2F.U) && ((inst_reg_delay(14,12) === 0x2.U) || (inst_reg_delay(14,12) === 0x3.U))
-  val if_amo_sc                                 = if_amo && (inst_reg_delay(31,27) === 0x03.U)
+  val if_amo_sc                                 = if_amo && ((inst_reg_delay(31,27) === 0x03.U) || (inst_reg_delay(31,27) === 0x01.U))
   val amo_addr                                  = dp_ldst_reg
   val amo_data                                  = Mux(if_amo_sc, io.ght_prfs_rd, dp_ldst_data) // Revist: not fully correct, the sc.w should get the data from STQ, but this does not affect us
 

@@ -94,6 +94,7 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val record_pc_out = Output(UInt(1.W))
   val elu_status_in = Input(UInt(2.W))
   val gtimer_reset_out = Output(UInt(1.W))
+  val core_trace_out = Output(UInt(1.W))
   //===== GuardianCouncil Function: End   ====//
 }
 
@@ -169,6 +170,7 @@ trait HasLazyRoCCModule extends CanHavePTWModule
       cmdRouter.io.t_value_in := rocc.module.io.t_value_out
       cmdRouter.io.s_or_r_in := rocc.module.io.s_or_r_out
       cmdRouter.io.arf_copy_in := rocc.module.io.arf_copy_out
+      cmdRouter.io.core_trace_in := rocc.module.io.core_trace_out
       cmdRouter.io.record_pc_in := rocc.module.io.record_pc_out
       cmdRouter.io.gtimer_reset_in := rocc.module.io.gtimer_reset_out
       rocc.module.io.rsu_status_in := cmdRouter.io.rsu_status_in
@@ -534,6 +536,8 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val t_value_in = Input(UInt(15.W))
     val arf_copy_out = Output(UInt(1.W))
     val arf_copy_in = Input(UInt(1.W))
+    val core_trace_out = Output(UInt(1.W))
+    val core_trace_in = Input(UInt(1.W))
     val record_pc_out = Output(UInt(1.W))
     val record_pc_in = Input(UInt(1.W))
     val gtimer_reset_out = Output(UInt(1.W))
@@ -582,6 +586,7 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.icctrl_out := io.icctrl_in
   io.t_value_out := io.t_value_in
   io.arf_copy_out := io.arf_copy_in
+  io.core_trace_out := io.core_trace_in
   io.record_pc_out := io.record_pc_in
   io.gtimer_reset_out := io.gtimer_reset_in
   io.s_or_r_out := io.s_or_r_in
@@ -652,6 +657,8 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val t_value_in = Input(UInt(15.W))
     val arf_copy_out = Output(UInt(1.W))
     val arf_copy_in = Input(UInt(1.W))
+    val core_trace_out = Output(UInt(1.W))
+    val core_trace_in = Input(UInt(1.W))
     val s_or_r_out = Output(UInt(2.W))
     val s_or_r_in = Input(UInt(2.W))
     val gtimer_reset_out = Output(UInt(1.W))
@@ -693,6 +700,7 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.t_value_out := io.t_value_in
   io.s_or_r_out := io.s_or_r_in
   io.arf_copy_out := io.arf_copy_in
+  io.core_trace_out := io.core_trace_in
   //===== GuardianCouncil Function: End   ====//
   assert(PopCount(cmdReadys) <= 1.U,
     "Custom opcode matched for more than one accelerator")

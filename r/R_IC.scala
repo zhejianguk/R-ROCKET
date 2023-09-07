@@ -21,6 +21,7 @@ class R_ICIO(params: R_ICParams) extends Bundle {
   val ic_threshold                               = Input(UInt((params.width_of_ic-1).W))
   val icsl_na                                    = Input(Vec(params.totalnumber_of_cores, UInt(1.W)))
   val ic_incr                                    = Input(UInt((3.W)))
+  val if_ready_snap_shot                         = Input(UInt((1.W)))
 
   val crnt_target                                = Output(UInt(5.W))
   val if_filtering                               = Output(UInt(1.W)) // 1: filtering; 0: non-filtering
@@ -79,7 +80,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   cooling_counter                              := Mux((fsm_state =/= fsm_cooling), 0.U, Mux(cooling_counter < cooling_threshold, cooling_counter + 1.U, cooling_counter))
   val if_cooled                                 = Mux((cooling_counter >= cooling_threshold) && !io.rsu_busy.asBool, true.B, false.B)
   sch_reset                                    := Mux((fsm_state === fsm_reset) || (io.changing_num_of_checker.asBool), 1.U, 0.U)
-  if_dosnap                                    := Mux((fsm_state =/= fsm_snap), 0.U, 1.U)
+  if_dosnap                                    := Mux(((fsm_state === fsm_snap) && (io.if_ready_snap_shot.asBool)), 1.U, 0.U)
   val if_t_and_na                               = Mux(((io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool) && (ic_status(sch_result).asBool)), 1.U, 0.U)
   val if_t_and_a                                = Mux(((io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool) && (!ic_status(sch_result).asBool)), 1.U, 0.U)
   fsm_ini                                      := Mux(fsm_state === fsm_reset, 1.U, Mux(fsm_state === fsm_presch, fsm_ini, 0.U))
@@ -107,13 +108,13 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       crnt_mask                                 := crnt_mask
       nxt_target                                := nxt_target
       if_filtering                              := 0.U
-      if_pipeline_stall                         := Mux(fsm_ini.asBool, 0.U, Mux(if_t_and_na_reg.asBool || io.ic_syscall_back.asBool, 1.U, 0.U))
+      if_pipeline_stall                         := Mux(fsm_ini.asBool, 0.U, Mux(io.ic_syscall_back.asBool, 1.U, 0.U))
       if_t_and_na_reg                           := 0.U
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
       }
-      fsm_state                                 := Mux(fsm_ini.asBool, Mux(io.ic_run_isax.asBool, fsm_sch, fsm_presch), Mux(if_t_and_na_reg.asBool || io.ic_syscall_back.asBool, fsm_sch, fsm_presch))      
+      fsm_state                                 := Mux(fsm_ini.asBool, Mux(io.ic_run_isax.asBool, fsm_sch, fsm_presch), Mux(!if_t_and_na_reg.asBool && io.ic_syscall_back.asBool, fsm_sch, fsm_presch))      
     }
 
     is (fsm_sch){ // 010
@@ -158,7 +159,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, Mux((crnt_target === i.U) && (ctrl(0) === 0.U), 1.U, ic_status(i)))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
       }
-      fsm_state                                 := fsm_trans
+      fsm_state                                 := Mux(io.if_ready_snap_shot.asBool, fsm_trans, fsm_snap)
     }
 
     is (fsm_trans){ // 101 Do we really need a signal to transmit the snapshot? 

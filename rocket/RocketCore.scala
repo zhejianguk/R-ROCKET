@@ -943,9 +943,11 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.ptw.hstatus := csr.io.hstatus
   io.ptw.gstatus := csr.io.gstatus
   io.ptw.pmp := csr.io.pmp
-  csr.io.rw.addr := wb_reg_inst(31,20)
-  csr.io.rw.cmd := CSR.maskCmd(wb_reg_valid, wb_ctrl.csr)
-  csr.io.rw.wdata := wb_reg_wdata
+  // Here, our overtaking should not cause any write-back of the CSR registers
+  // If, we do not have below 'filtering', an exception could be still generated
+  csr.io.rw.addr := Mux(replay_wb, 0.U, wb_reg_inst(31,20))
+  csr.io.rw.cmd := Mux(replay_wb, 0.U, CSR.maskCmd(wb_reg_valid, wb_ctrl.csr))
+  csr.io.rw.wdata := Mux(replay_wb, 0.U, wb_reg_wdata)
   io.trace := csr.io.trace
   for (((iobpw, wphit), bp) <- io.bpwatch zip wb_reg_wphit zip csr.io.bp) {
     iobpw.valid(0) := wphit
@@ -1092,7 +1094,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.r_farf_bits := rsu_slave.io.farfs_out
   io.fpu.r_farf_idx := rsu_slave.io.arfs_idx_out
   io.fpu.r_farf_valid := rsu_slave.io.arfs_valid_out
-  io.fpu.r_if_overtaking := icsl_if_overtaking
+  io.fpu.r_if_overtaking := Mux(checker_mode.asBool, icsl_if_overtaking.asBool, false.B)
 
   /* R Feature --- LSL */
   /*
@@ -1205,45 +1207,19 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   coreMonitorBundle.excpt := csr.io.trace(0).exception
   coreMonitorBundle.priv_mode := csr.io.trace(0).priv
 
-  if (enableCommitLog) {
-    val t = csr.io.trace(0)
-    val rd = wb_waddr
-    val wfd = wb_ctrl.wfd
-    val wxd = wb_ctrl.wxd
-    val has_data = wb_wen && !wb_set_sboard
-
-    when (t.valid && !t.exception) {
-      when (wfd) {
-        printf ("%d 0x%x (0x%x) f%d p%d 0xXXXXXXXXXXXXXXXX\n", t.priv, t.iaddr, t.insn, rd, rd+UInt(32))
-      }
-      .elsewhen (wxd && rd =/= UInt(0) && has_data) {
-        printf ("%d 0x%x (0x%x) x%d 0x%x\n", t.priv, t.iaddr, t.insn, rd, rf_wdata)
-      }
-      .elsewhen (wxd && rd =/= UInt(0) && !has_data) {
-        printf ("%d 0x%x (0x%x) x%d p%d 0xXXXXXXXXXXXXXXXX\n", t.priv, t.iaddr, t.insn, rd, rd)
-      }
-      .otherwise {
-        printf ("%d 0x%x (0x%x)\n", t.priv, t.iaddr, t.insn)
-      }
-    }
-
-    when (ll_wen && rf_waddr =/= UInt(0)) {
-      printf ("x%d p%d 0x%x\n", rf_waddr, rf_waddr, rf_wdata)
-    }
-  }
-  else {
-    when (csr.io.trace(0).valid) {
-      printf("C%d: %d [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] DASM(%x)\n",
-         io.hartid, coreMonitorBundle.timer, coreMonitorBundle.valid,
-         coreMonitorBundle.pc,
-         Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
-         Mux(coreMonitorBundle.wrenx, coreMonitorBundle.wrdata, 0.U),
-         coreMonitorBundle.wrenx,
-         Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0src, 0.U),
-         Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0val, 0.U),
-         Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1src, 0.U),
-         Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
-         coreMonitorBundle.inst, coreMonitorBundle.inst)
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (csr.io.trace(0).valid && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: %d [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] DASM(%x) sl_counter=[%x]\n",
+          io.hartid, coreMonitorBundle.timer, coreMonitorBundle.valid,
+          coreMonitorBundle.pc,
+          Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
+          Mux(coreMonitorBundle.wrenx, coreMonitorBundle.wrdata, 0.U),
+          coreMonitorBundle.wrenx,
+          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0src, 0.U),
+          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0val, 0.U),
+          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1src, 0.U),
+          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
+          coreMonitorBundle.inst, coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U)))
     }
   }
 

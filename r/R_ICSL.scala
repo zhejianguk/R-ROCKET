@@ -23,6 +23,7 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val if_rh_cp_pc                                = Output(UInt(1.W))
   val if_check_completed                         = Input(UInt(1.W))
   val icsl_status                                = Output(UInt(2.W))
+  val debug_sl_counter                           = Output(UInt(params.width_of_ic.W))
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -42,7 +43,9 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   val if_rh_cp_pc                                = WireInit(0.U(1.W))
 
   val sl_counter                                 = RegInit(0.U(params.width_of_ic.W))
-  val if_instants_overtaking                     = Mux((io.if_correct_process.asBool && io.new_commit.asBool && ((sl_counter + 1.U) >= ic_counter_shadow) && ic_counter_done.asBool), 1.U, 0.U)
+  val if_instants_completion                     = Mux((io.if_correct_process.asBool && io.new_commit.asBool && ((sl_counter + 1.U) >= ic_counter_shadow) && ic_counter_done.asBool), 1.U, 0.U)
+  val if_slow_completion                         = (sl_counter >= ic_counter_shadow) && ic_counter_done.asBool
+  val if_just_overtaking                         = Mux((io.if_correct_process.asBool && io.new_commit.asBool && ((sl_counter + 1.U) >= ic_counter_shadow)), 1.U, 0.U)
 
 
   val fsm_reset :: fsm_nonchecking :: fsm_checking :: fsm_postchecking :: Nil = Enum(4)
@@ -70,7 +73,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
       clear_ic_status                           := 0.U
       icsl_checkermode                          := 1.U
       if_rh_cp_pc                               := 0.U
-      fsm_state                                 := Mux(if_instants_overtaking.asBool, fsm_postchecking, fsm_checking)
+      fsm_state                                 := Mux(if_instants_completion.asBool || if_slow_completion.asBool, fsm_postchecking, fsm_checking)
     }
 
     is (fsm_postchecking){
@@ -85,7 +88,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
 
   ic_counter_shadow                             := io.ic_counter(params.width_of_ic-2,0) + 1.U // The checker core requires to run one more insts due to the custom jump
   ic_counter_done                               := io.ic_counter(params.width_of_ic-1)
-  if_overtaking                                 := Mux((if_instants_overtaking.asBool ||  (sl_counter >= ic_counter_shadow)), 1.U, 0.U)
+  if_overtaking                                 := Mux((if_just_overtaking.asBool ||  (sl_counter >= ic_counter_shadow)), 1.U, 0.U)
   
 
   if_ret_special_pc                             := Mux(io.if_check_completed.asBool, 1.U, 0.U)
@@ -97,4 +100,5 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   io.if_ret_special_pc                          := if_ret_special_pc
   io.if_rh_cp_pc                                := if_rh_cp_pc
   io.icsl_status                                := Mux(fsm_state === fsm_nonchecking, 1.U, 0.U)
+  io.debug_sl_counter                           := sl_counter
 }

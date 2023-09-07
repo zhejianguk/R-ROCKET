@@ -23,7 +23,7 @@ class R_LSLIO(params: R_LSLParams) extends Bundle {
   val req_valid = Input(UInt(1.W))
   val req_addr = Input(UInt(40.W)) // Later used for comparision
   val req_tag = Input(UInt(8.W))
-  val req_cmd = Input(UInt(2.W)) // 01: load; 10: store
+  val req_cmd = Input(UInt(2.W)) // 01: load; 10: store; 11: load & store
   val req_data = Input(UInt(params.xLen.W)) // Later used for comparision
   val req_size = Input(UInt(2.W))
   val req_kill = Input(UInt(1.W))
@@ -78,9 +78,11 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
 
   val req_valid_reg           = RegInit(0.U(1.W))
   val resp_valid_reg          = RegInit(0.U(1.W))
+  val resp_kill_reg           = RegInit(0.U(1.W))
   val resp_tag                = RegInit(0.U(8.W))
   val cmd                     = RegInit(0.U(2.W))
   val req_size_reg            = RegInit(0.U(2.W))
+  resp_kill_reg              := io.req_kill // already in the replay procedure....
 
   channel_deq_ready          := io.req_valid & !channel_empty & !io.req_kill
   req_valid_reg              := io.req_valid
@@ -97,7 +99,7 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   io.resp_data               := Mux((resp_valid_reg === 1.U), channel_deq_data(127, 64), 0.U)
   io.resp_addr               := Mux((resp_valid_reg === 1.U), channel_deq_data(63, 0), 0.U)
   io.resp_has_data           := Mux((resp_valid_reg === 1.U) && (cmd(0) === 1.U), 1.U, 0.U)
-  io.resp_replay             := req_valid_reg & !resp_valid_reg
+  io.resp_replay             := req_valid_reg & !resp_valid_reg & !resp_kill_reg
 
   val u_channel_csr           = Module (new GH_FIFO(FIFOParams(params.xLen, 9))) // These are rarely used
   val csr_channel_enq_valid   = WireInit(false.B)

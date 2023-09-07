@@ -97,7 +97,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val doCheckELU              = (cmd.fire && (funct === 0x66.U))
     val doGtimerRest            = (cmd.fire && (funct === 0x67.U))
     val doFIRead                = (cmd.fire && (funct === 0x68.U))
-
+    val doCoreTrace             = (cmd.fire && (funct === 0x69.U))
 
     // For big core
     val doBigCheckComp          = (cmd.fire && (funct === 0x6.U))
@@ -336,4 +336,9 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val detecting_an_fault     = Mux(channel_deq_ready.asBool && (channel_deq_data(111,72) =/= 0.U), true.B, false.B)
     io.report_fi_detection_out:= Mux(detecting_an_fault.asBool, Cat(1.U, channel_deq_data(127, 72)), 0.U)
     io.fi_sel_out             := Mux(doFIRead, rs1_val(7,0), 0.U)
+
+    /* Core Trace */
+    val core_trace              = RegInit(0.U(1.W))
+    core_trace                 := Mux(doCoreTrace, rs1_val(0), core_trace)
+    io.core_trace_out          := core_trace
 }
