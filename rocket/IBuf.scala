@@ -22,6 +22,7 @@ class IBuf(implicit p: Parameters) extends CoreModule {
   val io = new Bundle {
     val imem = Decoupled(new FrontendResp).flip
     val kill = Bool(INPUT)
+    val checker_mode = Bool(INPUT)
     val pc = UInt(OUTPUT, vaddrBitsExtended)
     val btb_resp = new BTBResp().asOutput
     val inst = Vec(retireWidth, Decoupled(new Instruction))
@@ -69,7 +70,11 @@ class IBuf(implicit p: Parameters) extends CoreModule {
   val icData = shiftInsnLeft(Cat(io.imem.bits.data, Fill(fetchWidth, io.imem.bits.data(coreInstBits-1, 0))), icShiftAmt)
     .extract(3*fetchWidth*coreInstBits-1, 2*fetchWidth*coreInstBits)
   val icMask = (~UInt(0, fetchWidth*coreInstBits) << (nBufValid << log2Ceil(coreInstBits)))(fetchWidth*coreInstBits-1,0)
-  val inst = icData & icMask | buf.data & ~icMask
+
+  val inst_checker = icData & icMask | buf.data & ~icMask
+  val inst_if_ebreak = Mux(((inst_checker === 0x00100073.U) || (inst_checker === 0x9002.U)), true.B, false.B)
+  val inst_if_ecall = Mux(inst_checker === 0x00000073.U, true.B, false.B)
+  val inst = Mux(io.checker_mode.asBool && (inst_if_ebreak || inst_if_ecall), 0x00000013.U, inst_checker) // An sys-call should not be executed in checker mode
 
   val valid = (UIntToOH(nValid) - 1)(fetchWidth-1, 0)
   val bufMask = UIntToOH(nBufValid) - 1

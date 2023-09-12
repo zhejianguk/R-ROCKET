@@ -192,7 +192,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       fsm_state                                 := Mux(io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool, fsm_postcheck, fsm_check)
     }
 
-    is (fsm_postcheck){
+    is (fsm_postcheck){ // 111
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
@@ -209,6 +209,12 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   }
 
   
+
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when ((io.ic_incr =/= 0.U) && (fsm_state === fsm_check)) {
+      printf(midas.targetutils.SynthesizePrintf("sl_counter=[%x]\n", (ic_counter(crnt_target)+io.ic_incr)))
+    }
+  }
 
 
   // Manage ic_status and ic_counter

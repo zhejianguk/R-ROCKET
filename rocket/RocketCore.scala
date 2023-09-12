@@ -310,6 +310,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   /* R Features */
   val rsu_pc = Reg(UInt(width=40))
   val checker_mode = Wire(UInt(width=1))
+  ibuf.io.checker_mode := checker_mode
 
   val lsl_req_ready     = Wire(UInt(width=1))
   val lsl_req_valid     = Wire(UInt(width=1))
@@ -946,9 +947,9 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.ptw.pmp := csr.io.pmp
   // Here, our overtaking should not cause any write-back of the CSR registers
   // If, we do not have below 'filtering', an exception could be still generated
-  csr.io.rw.addr := Mux(replay_wb, 0.U, wb_reg_inst(31,20))
-  csr.io.rw.cmd := Mux(replay_wb, 0.U, CSR.maskCmd(wb_reg_valid, wb_ctrl.csr))
-  csr.io.rw.wdata := Mux(replay_wb, 0.U, wb_reg_wdata)
+  csr.io.rw.addr := wb_reg_inst(31,20)
+  csr.io.rw.cmd := CSR.maskCmd(wb_reg_valid, wb_ctrl.csr)
+  csr.io.rw.wdata := wb_reg_wdata
   io.trace := csr.io.trace
   for (((iobpw, wphit), bp) <- io.bpwatch zip wb_reg_wphit zip csr.io.bp) {
     iobpw.valid(0) := wphit
@@ -1222,6 +1223,21 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
           coreMonitorBundle.inst, coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U)))
     }
+  } else {
+    when (csr.io.trace(0).valid) {
+      printf("C%d: %d [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] DASM(%x) sl_counter=[%x]\n",
+          io.hartid, coreMonitorBundle.timer, coreMonitorBundle.valid,
+          coreMonitorBundle.pc,
+          Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
+          Mux(coreMonitorBundle.wrenx, coreMonitorBundle.wrdata, 0.U),
+          coreMonitorBundle.wrenx,
+          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0src, 0.U),
+          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0val, 0.U),
+          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1src, 0.U),
+          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
+          coreMonitorBundle.inst, coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U))
+    }
+
   }
 
   // CoreMonitorBundle for late latency writes
