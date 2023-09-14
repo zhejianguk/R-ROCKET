@@ -86,6 +86,14 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
 
   }
 
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    val fsm_state_delay                          = RegInit(fsm_reset)
+    fsm_state_delay                              := fsm_state
+    when (fsm_state_delay =/= fsm_state) {
+      printf(midas.targetutils.SynthesizePrintf("fsm_state=[%x]\n", fsm_state))
+    }
+  }
+
   ic_counter_shadow                             := io.ic_counter(params.width_of_ic-2,0) + 1.U // The checker core requires to run one more insts due to the custom jump
   ic_counter_done                               := io.ic_counter(params.width_of_ic-1)
   if_overtaking                                 := Mux((if_just_overtaking.asBool ||  (sl_counter >= ic_counter_shadow)), 1.U, 0.U)
