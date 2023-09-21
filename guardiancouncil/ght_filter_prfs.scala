@@ -153,7 +153,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
                                                           )
 
   io.ght_prfs_forward_stq                      := MuxCase(0.U, 
-                                                    Array((dp_sel === 0.U)  -> false.B,
+                                                    Array((dp_sel === 0.U)  -> true.B,
                                                           (dp_sel === 1.U)  -> false.B,
                                                           (dp_sel === 2.U)  -> false.B,
                                                           (dp_sel === 3.U)  -> true.B
@@ -161,7 +161,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
                                                           )
 
   val ght_prfs_forward_prf                      = MuxCase(0.U,
-                                                    Array((dp_sel === 0.U)  -> false.B,
+                                                    Array((dp_sel === 0.U)  -> true.B,
                                                           (dp_sel === 1.U)  -> true.B,
                                                           (dp_sel === 2.U)  -> true.B,
                                                           (dp_sel === 3.U)  -> false.B
@@ -171,11 +171,11 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   io.ght_prfs_forward_prf                      := (ght_prfs_forward_prf === true.B) && (!(inst_ret|inst_ret_rvc))
   io.ght_prfs_forward_ftq                      := (ght_prfs_forward_prf === true.B) && (inst_ret|inst_ret_rvc)
 
-  val if_amo                                    = WireInit(false.B)
-  if_amo                                       := (inst_reg_delay(6,0) === 0x2F.U) && ((inst_reg_delay(14,12) === 0x2.U) || (inst_reg_delay(14,12) === 0x3.U))
-  val if_amo_sc                                 = if_amo && ((inst_reg_delay(31,27) === 0x03.U) || (inst_reg_delay(31,27) === 0x01.U))
-  val amo_addr                                  = dp_ldst_reg
-  val amo_data                                  = Mux(if_amo_sc, io.ght_prfs_rd, dp_ldst_data) // Revist: not fully correct, the sc.w should get the data from STQ, but this does not affect us
+  // val if_amo                                    = WireInit(false.B)
+  // if_amo                                       := (inst_reg_delay(6,0) === 0x2F.U) && ((inst_reg_delay(14,12) === 0x2.U) || (inst_reg_delay(14,12) === 0x3.U))
+  // val if_amo_sc                                 = if_amo && ((inst_reg_delay(31,27) === 0x03.U) || (inst_reg_delay(31,27) === 0x01.U))
+  // val amo_addr                                  = dp_ldst_reg
+  // val amo_data                                  = Mux(if_amo_sc, io.ght_prfs_rd, dp_ldst_data) // Revist: not fully correct, the sc.w should get the data from STQ, but this does not affect us
 
   //==========================================================
   // Fault Injection 
@@ -194,7 +194,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   /* Below is added for fault injection */
   val if_id                                     = WireInit(0.U(4.W))
   if_id                                        := params.id_filter.U
-  val fi_dp1                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, amo_addr)
+  val fi_dp1                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, dp_ldst_reg)
   val fi_dp2                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, dp_ldst_reg)
   val fi_dp3                                    = Cat(if_id, fi_counter(3,0), io.gtimer(39,0), zero8, dp_jump_wire(61,0), jump_type)
 
@@ -202,13 +202,14 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   // val nfi_dp2                                   = dp_ldst_reg
   // val nfi_dp3                                   = Cat(dp_jump_wire(61,0), jump_type)
   
-  val nfi_dp1                                   = Cat(amo_data, amo_addr)
+  val nfi_dp0                                   = Cat(io.ght_prfs_rd, dp_ldst_reg)
+  val nfi_dp1                                   = Cat(dp_ldst_data, dp_ldst_reg)
   val nfi_dp2                                   = Cat(dp_ldst_data, dp_ldst_reg)
   val nfi_dp3                                   = Cat(pc_reg_delay(29,0), inst_reg_delay, dp_jump_wire(63,0), jump_type)
 
   io.packet_out                                := MuxCase(0.U, 
-                                                    Array((dp_sel_reg === 0.U) -> 0.U,
-                                                          (dp_sel_reg === 2.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp1, nfi_dp1), 0.U), // amo insts are treated as load instruction.
+                                                    Array((dp_sel_reg === 0.U) -> nfi_dp0,
+                                                          (dp_sel_reg === 2.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp1, nfi_dp1), 0.U),
                                                           (dp_sel_reg === 3.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp2, nfi_dp2), 0.U),
                                                           (dp_sel_reg === 1.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp3, nfi_dp3), 0.U)
                                                           )

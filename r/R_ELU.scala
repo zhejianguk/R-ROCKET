@@ -47,12 +47,12 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
   val req_data_wire           = WireInit(0.U(params.xLen.W))
   val resp_data_wire          = WireInit(0.U(params.xLen.W))
 
-  val if_amo                  = WireInit(false.B)
-  if_amo                     := (io.wb_inst(6,0) === 0x2F.U) && ((io.wb_inst(14,12) === 0x2.U) || (io.wb_inst(14,12) === 0x3.U))
-  val if_amo_sc               = if_amo && ((io.wb_inst(31,27) === 0x03.U) || (io.wb_inst(31,27) === 0x01.U))
+  // val if_amo                  = WireInit(false.B)
+  // if_amo                     := (io.wb_inst(6,0) === 0x2F.U) && ((io.wb_inst(14,12) === 0x2.U) || (io.wb_inst(14,12) === 0x3.U))
+  // val if_amo_sc               = if_amo && ((io.wb_inst(31,27) === 0x03.U) || (io.wb_inst(31,27) === 0x01.U))
 
   ld_valid_reg               := !io.lsl_req_kill.asBool && io.lsl_req_ready.asBool && io.lsl_req_valid.asBool && ((io.lsl_req_cmd === 0x01.U) || (io.lsl_req_cmd === 0x03.U))
-  ld_valid                   := ld_valid_reg && !if_amo_sc
+  ld_valid                   := ld_valid_reg
   st_valid                   := !io.lsl_req_kill.asBool && io.lsl_req_ready.asBool && io.lsl_req_valid.asBool && (io.lsl_req_cmd === 0x02.U)
   req_addr_reg               := io.lsl_req_addr
   req_data_reg               := io.lsl_req_data

@@ -846,7 +846,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   // Instantiate LSL
   lsl.io.m_st_valid := Mux(((io.packet_lsl(137) === 1.U) && (io.packet_lsl(136) =/= 1.U)), 1.U, 0.U)
-  lsl.io.m_ld_valid := Mux(((io.packet_lsl(137) =/= 1.U) && (io.packet_lsl(136) === 1.U)), 1.U, 0.U)
+  lsl.io.m_ld_valid := Mux(((io.packet_lsl(137,136) === 1.U) || (io.packet_lsl(137,136) === 0.U)), 1.U, 0.U)
   lsl.io.m_csr_valid := Mux(((io.packet_lsl(137) === 1.U) && (io.packet_lsl(136) === 1.U)), 1.U, 0.U)
   lsl.io.m_csr_data := io.packet_lsl(65, 2)
   lsl.io.m_ldst_data := io.packet_lsl(127,64)
