@@ -38,6 +38,8 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val elu_cp_deq = Input(UInt(1.W))
   val elu_cp_data = Output(UInt((4*params.xLen+8).W))
   val elu_status = Output(UInt(1.W))
+
+  val core_trace = Input(UInt(1.W))
 }
 
 trait HasR_RSUSLIO extends BaseModule {
@@ -143,7 +145,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   val arfs_out_idx                                = Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay =/= 0x20.U)), apply_counter_memdelay, 0.U)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
-    when (arfs_out_valid_printf.asBool) {
+    when ((arfs_out_valid_printf.asBool) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("[CHECK POINTS --- Checker]: ARFS[%d] = [%x]\n", 
       arfs_out_idx, arfs_out_printf))
     }

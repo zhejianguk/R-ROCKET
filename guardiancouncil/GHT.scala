@@ -264,12 +264,6 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
     debug_icounter                              := debug_icounter + 1.U
   }
   
-  /*
-  when (inst_index =/= 0.U) {
-      printf(midas.targetutils.SynthesizePrintf("GHM: Packet [%x %x %x]. \n", 
-      ght_pack(143,128), ght_pack(127,64), ght_pack(63,0)))
-  } */
-  
   io.debug_mcounter                             := debug_mcounter
   io.debug_icounter                             := debug_icounter
 

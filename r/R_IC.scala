@@ -34,6 +34,7 @@ class R_ICIO(params: R_ICParams) extends Bundle {
   val if_correct_process                         = Input(UInt((1.W)))
   val num_of_checker                             = Input(UInt((8.W)))
   val changing_num_of_checker                    = Input(UInt((1.W)))
+  val core_trace                                 = Input(UInt((1.W)))
 }
 
 trait HasR_ICIO extends BaseModule {
@@ -213,13 +214,13 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
-    when ((io.ic_incr =/= 0.U) && (fsm_state === fsm_check)) {
+    when ((io.ic_incr =/= 0.U) && (fsm_state === fsm_check) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("sl_counter=[%x]\n", (ic_counter(crnt_target)+io.ic_incr)))
     }
 
     val fsm_state_delay                          = RegInit(fsm_reset)
     fsm_state_delay                              := fsm_state
-    when (fsm_state_delay =/= fsm_state) {
+    when ((fsm_state_delay =/= fsm_state) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("fsm_state=[%x]\n", fsm_state))
     }
   }

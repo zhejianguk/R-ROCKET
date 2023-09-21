@@ -819,6 +819,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     rsu_slave.io.core_farfs_in(i) := io.fpu.farfs(i)
   }
   rsu_slave.io.elu_cp_deq := Mux(io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
+  rsu_slave.io.core_trace := io.core_trace
 
 
   csr.io.pfarf_valid := rsu_slave.io.pfarf_valid_out
@@ -843,6 +844,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val returned_to_special_address_valid = Wire(Bool())
   icsl.io.returned_to_special_address_valid := returned_to_special_address_valid
   icsl.io.if_check_completed := rsu_slave.io.if_cp_check_completed
+  icsl.io.core_trace := io.core_trace
 
   // Instantiate LSL
   lsl.io.m_st_valid := Mux(((io.packet_lsl(137) === 1.U) && (io.packet_lsl(136) =/= 1.U)), 1.U, 0.U)
@@ -891,6 +893,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.elu_status := Cat(rsu_slave.io.elu_status, elu.io.elu_status)
   elu.io.elu_deq := Mux(!io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
   elu.io.lsl_resp_addr := lsl_resp_addr
+  elu.io.core_trace := io.core_trace
 
 
   when (rf_wen_rsu === 1.U) {

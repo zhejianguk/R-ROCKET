@@ -30,6 +30,7 @@ class R_RSUIO(params: R_RSUParams) extends Bundle {
   val ic_crnt_target = Input(UInt(5.W))
   val arfs_pidx = Output(Vec(params.scalarWidth, UInt(8.W)))
   val rsu_busy = Output(UInt(1.W))
+  val core_trace =Input(UInt(1.W))
 }
 
 trait HasR_RSUIO extends BaseModule {
@@ -104,7 +105,7 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   io.rsu_busy                                      := Mux(io.snapshot.asBool || io.merge.asBool || doSnapshot.asBool || doMerge.asBool || merging.asBool, 1.U, 0.U)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
-    when (doSnapshot === 1.U) {
+    when ((doSnapshot === 1.U) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("[CHECK POINTS --- Boom]: ARFS = [%x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x]\n", 
       io.arfs_in(0), io.arfs_in(1), io.arfs_in(2), io.arfs_in(3),io.arfs_in(4), io.arfs_in(5), io.arfs_in(6), io.arfs_in(7),
       io.arfs_in(8), io.arfs_in(9), io.arfs_in(10), io.arfs_in(11),io.arfs_in(12), io.arfs_in(13), io.arfs_in(14), io.arfs_in(15),

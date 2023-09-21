@@ -24,6 +24,7 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val if_check_completed                         = Input(UInt(1.W))
   val icsl_status                                = Output(UInt(2.W))
   val debug_sl_counter                           = Output(UInt(params.width_of_ic.W))
+  val core_trace                                 = Input(UInt(1.W))
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -89,7 +90,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   if (GH_GlobalParams.GH_DEBUG == 1) {
     val fsm_state_delay                          = RegInit(fsm_reset)
     fsm_state_delay                              := fsm_state
-    when (fsm_state_delay =/= fsm_state) {
+    when ((fsm_state_delay =/= fsm_state) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("fsm_state=[%x]\n", fsm_state))
     }
   }

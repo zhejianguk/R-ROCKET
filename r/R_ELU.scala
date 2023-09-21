@@ -29,6 +29,8 @@ class R_ELUIO(params: R_ELUParams) extends Bundle {
   val elu_deq = Input(UInt(1.W))
   val elu_data = Output(UInt((2*params.xLen+3*params.wAddr).W))
   val elu_status = Output(UInt(1.W))
+
+  val core_trace = Input(UInt(1.W))
 }
 
 trait HasR_ELUIO extends BaseModule {
@@ -121,7 +123,7 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
   io.elu_status              := ~channel_empty
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
-    when (err_ld | err_st) {
+    when ((err_ld | err_st) && (io.core_trace.asBool)) {
         printf(midas.targetutils.SynthesizePrintf("ELU: an error is detected! [req_addr = %x], [resp_addr = %x], [req_data = %x], [resp_data = %x]. \n", 
         req_addr_reg, io.lsl_resp_addr, Mux(err_ld, useless_ones, req_data_wire), resp_data_wire))
     }
