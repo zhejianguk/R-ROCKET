@@ -156,8 +156,11 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val packet_in = outer.ghe_packet_in_SKNode.bundle
   val packet_index = packet_in (143, 136)
   val ptype_fg = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 0.U)), 1.U, 0.U)
-  val ptype_lsl = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 1.U)), 1.U, 0.U)
-  val ptype_rcu = Mux((packet_index(2) === 1.U) && (s_or_r === 1.U), 1.U, 0.U)
+  // val ptype_lsl = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 1.U)), 1.U, 0.U)
+  // val ptype_rcu = Mux((packet_index(2) === 1.U) && (s_or_r === 1.U), 1.U, 0.U)
+  val ptype_lsl = Mux((s_or_r.asBool && (packet_index(2,0) =/= 7.U) && (packet_index(2,0) =/= 0.U)), 1.U, 0.U)
+  val ptype_rcu = Mux(s_or_r.asBool && (packet_index(2,0) === 7.U), 1.U, 0.U)
+
   val arfs_if_CPS = Mux(ptype_rcu.asBool && (packet_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
   val core_trace = Wire(0.U(1.W))
 

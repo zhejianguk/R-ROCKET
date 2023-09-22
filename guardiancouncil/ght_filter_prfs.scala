@@ -100,7 +100,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   u_ght_ftable.io.inst_is_rvc                  := is_rvc
 
   val inst_index                                = WireInit(0.U(2.W))
-  val dp_sel                                    = WireInit(0.U(2.W))
+  val dp_sel                                    = WireInit(0.U(3.W))
 
   inst_index                                   := u_ght_ftable.io.inst_index
   dp_sel                                       := u_ght_ftable.io.inst_sel_d
@@ -111,7 +111,7 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
 
   if (params.use_prfs){
   val inst_index_reg                            = RegInit(0.U(2.W))
-  val dp_sel_reg                                = RegInit(0.U(2.W))
+  val dp_sel_reg                                = RegInit(0.U(3.W))
   val pc_reg_delay                              = RegInit(0.U(32.W))
   val inst_reg_delay                            = RegInit(0.U(32.W))
   val inst_ret_delay                            = RegInit(false.B)
@@ -148,23 +148,26 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
                                                     Array((dp_sel === 0.U)  -> false.B,
                                                           (dp_sel === 1.U)  -> false.B,
                                                           (dp_sel === 2.U)  -> true.B,
-                                                          (dp_sel === 3.U)  -> false.B
+                                                          (dp_sel === 3.U)  -> false.B,
+                                                          (dp_sel === 5.U)  -> false.B
                                                           )
                                                           )
 
   io.ght_prfs_forward_stq                      := MuxCase(0.U, 
-                                                    Array((dp_sel === 0.U)  -> true.B,
+                                                    Array((dp_sel === 0.U)  -> false.B,
                                                           (dp_sel === 1.U)  -> false.B,
                                                           (dp_sel === 2.U)  -> false.B,
-                                                          (dp_sel === 3.U)  -> true.B
+                                                          (dp_sel === 3.U)  -> true.B,
+                                                          (dp_sel === 5.U)  -> true.B
                                                           )
                                                           )
 
   val ght_prfs_forward_prf                      = MuxCase(0.U,
-                                                    Array((dp_sel === 0.U)  -> true.B,
+                                                    Array((dp_sel === 0.U)  -> false.B,
                                                           (dp_sel === 1.U)  -> true.B,
                                                           (dp_sel === 2.U)  -> true.B,
-                                                          (dp_sel === 3.U)  -> false.B
+                                                          (dp_sel === 3.U)  -> false.B,
+                                                          (dp_sel === 5.U)  -> true.B
                                                           )
                                                           )
 
@@ -202,16 +205,17 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   // val nfi_dp2                                   = dp_ldst_reg
   // val nfi_dp3                                   = Cat(dp_jump_wire(61,0), jump_type)
   
-  val nfi_dp0                                   = Cat(io.ght_prfs_rd, dp_ldst_reg)
+  val nfi_dp5                                   = Cat(io.ght_prfs_rd, dp_ldst_reg)
   val nfi_dp1                                   = Cat(dp_ldst_data, dp_ldst_reg)
   val nfi_dp2                                   = Cat(dp_ldst_data, dp_ldst_reg)
   val nfi_dp3                                   = Cat(pc_reg_delay(29,0), inst_reg_delay, dp_jump_wire(63,0), jump_type)
 
   io.packet_out                                := MuxCase(0.U, 
-                                                    Array((dp_sel_reg === 0.U) -> nfi_dp0,
+                                                    Array((dp_sel_reg === 0.U) -> 0.U,
+                                                          (dp_sel_reg === 5.U) -> Mux((inst_index_reg =/= 0.U), nfi_dp5, 0.U),
                                                           (dp_sel_reg === 2.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp1, nfi_dp1), 0.U),
                                                           (dp_sel_reg === 3.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp2, nfi_dp2), 0.U),
-                                                          (dp_sel_reg === 1.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp3, nfi_dp3), 0.U)
+                                                          (dp_sel_reg === 1.U) -> Mux((inst_index_reg =/= 0.U), Mux(fi, fi_dp3, nfi_dp3), 0.U),
                                                           )
                                                           )
 
@@ -219,24 +223,5 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
   val one                                       = WireInit(1.U(1.W))
   one                                          := Mux(io.ic_crnt_target(3,0) === 0.U, 0.U, 1.U)
   io.ght_ft_inst_index                         := Mux(inst_index_reg =/= 0.U, Cat(one, io.ic_crnt_target(3,0), zero, inst_index_reg), 0.U)
-  }
-
-  if (!params.use_prfs){
-  io.ght_prfs_forward_ldq                      := 0.U
-  io.ght_prfs_forward_stq                      := 0.U
-  io.ght_prfs_forward_prf                      := 0.U
-  io.ght_prfs_forward_ftq                      := 0.U
-  
-  io.packet_out                                := MuxCase(0.U, 
-                                                    Array((dp_sel === 0.U)  -> 0.U,
-                                                          (dp_sel =/= 0.U)  -> Cat(pc_reg, inst_reg, dp_ldst_reg)
-                                                          )
-                                                          )
-
-  io.ght_ft_inst_index                         := MuxCase(0.U, 
-                                                    Array((dp_sel === 0.U)  -> 0.U,
-                                                          (dp_sel =/= 0.U)  -> inst_index
-                                                          )
-                                                          )
   }
 }
