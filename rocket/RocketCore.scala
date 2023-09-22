@@ -1227,6 +1227,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           coreMonitorBundle.inst, coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U)))
     }
   } else {
+    /*
     when (csr.io.trace(0).valid) {
       printf("C%d: %d [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] DASM(%x) sl_counter=[%x]\n",
           io.hartid, coreMonitorBundle.timer, coreMonitorBundle.valid,
@@ -1240,7 +1241,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
           coreMonitorBundle.inst, coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U))
     }
-
+    */
   }
 
   // CoreMonitorBundle for late latency writes

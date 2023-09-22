@@ -142,14 +142,15 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
                                                          )
 
 
-
+  val lr_inst                                   = (inst_reg(6,0) === 0x2F.U) && ((inst_reg(14,12) === 0x2.U) || (inst_reg(14,12) === 0x3.U)) && (inst_reg(31,27) === 0x02.U)
 
   io.ght_prfs_forward_ldq                      := MuxCase(0.U, 
                                                     Array((dp_sel === 0.U)  -> false.B,
                                                           (dp_sel === 1.U)  -> false.B,
                                                           (dp_sel === 2.U)  -> true.B,
                                                           (dp_sel === 3.U)  -> false.B,
-                                                          (dp_sel === 5.U)  -> false.B
+                                                          ((dp_sel === 5.U) && (!lr_inst)) -> false.B,
+                                                          ((dp_sel === 5.U) && (lr_inst)) -> true.B
                                                           )
                                                           )
 
@@ -158,7 +159,8 @@ class GHT_FILTER_PRFS (val params: GHT_FILTER_PRFS_Params) extends Module with H
                                                           (dp_sel === 1.U)  -> false.B,
                                                           (dp_sel === 2.U)  -> false.B,
                                                           (dp_sel === 3.U)  -> true.B,
-                                                          (dp_sel === 5.U)  -> true.B
+                                                          ((dp_sel === 5.U) && (!lr_inst))  -> true.B,
+                                                          ((dp_sel === 5.U) && (lr_inst))  -> false.B
                                                           )
                                                           )
 
