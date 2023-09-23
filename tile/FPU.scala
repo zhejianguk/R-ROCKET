@@ -801,6 +801,8 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     io.farfs(i) := ieee(regfile(i))
   }
 
+  val r_if_overtaking = Reg(Bool())
+  r_if_overtaking := io.r_if_overtaking.asBool
   when (load_wb && (!r_if_overtaking)) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
     regfile(load_wb_tag) := wdata
@@ -945,8 +947,6 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   val wtypeTag = Mux(divSqrt_wen, divSqrt_typeTag, wbInfo(0).typeTag)
   val wdata = box(Mux(divSqrt_wen, divSqrt_wdata, (pipes.map(_.res.data): Seq[UInt])(wbInfo(0).pipeid)), wtypeTag)
   val wexc = (pipes.map(_.res.exc): Seq[UInt])(wbInfo(0).pipeid)
-  val r_if_overtaking = Reg(Bool())
-  r_if_overtaking := io.r_if_overtaking.asBool
   when (((!wbInfo(0).cp && wen(0)) || divSqrt_wen) && (!r_if_overtaking)) {
     assert(consistent(wdata))
     regfile(waddr) := wdata
