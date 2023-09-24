@@ -814,8 +814,8 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     frfWriteBundle(0).wrdata := ieee(wdata)
   } .elsewhen (io.r_farf_valid === 1.U) {
     val r_farf_wbtype = Wire(0.U(2.W))
-    // r_farf_wbtype := 1.U
-    r_farf_wbtype := Mux((io.r_farf_bits(63, 32) === 0xFFFFFFFF.U), 0.U, 1.U)
+    // FFFFr_farf_wbtype := 1.U
+    r_farf_wbtype := Mux((io.r_farf_bits(63, 32) === "hFFFFFFFF".U), 0.U, 1.U)
     val r_farf_wb = recode(io.r_farf_bits, r_farf_wbtype)
     regfile(io.r_farf_idx) := r_farf_wb
   }
