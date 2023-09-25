@@ -209,6 +209,7 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val r_farf_valid = Input(UInt(1.W))
   val r_if_overtaking = Input(UInt(1.W))
   val farfs = Output(Vec(32, UInt(64.W)))
+  val retire = Input(UInt(1.W))
   val keep_clock_enabled = Bool(INPUT)
 }
 
@@ -801,9 +802,23 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     io.farfs(i) := ieee(regfile(i))
   }
 
-  val r_if_overtaking = Reg(Bool())
-  r_if_overtaking := io.r_if_overtaking.asBool
-  when (load_wb && (!r_if_overtaking)) {
+  val r_if_overtaking = Wire(Bool())
+  val retire_1cycle = Reg(Bool())
+  val retire_2cycle = Reg(Bool())
+  val wen_1cycle = RegInit(0.U(3.W))
+  val wen_2cycle = RegInit(0.U(3.W))
+  retire_1cycle := io.retire
+  retire_2cycle := retire_1cycle
+  wen_1cycle := wen
+  wen_2cycle := wen_1cycle
+
+
+  r_if_overtaking := Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 2.U) && (wen_1cycle === 4.U)), 0.U, 
+                     Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 1.U) && (wen_1cycle === 2.U)), 0.U,
+                     Mux((io.r_if_overtaking.asBool &&  retire_2cycle && (wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle === 4.U)), 0.U, io.r_if_overtaking.asBool)))
+
+
+  when (load_wb && !r_if_overtaking) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
     regfile(load_wb_tag) := wdata
     assert(consistent(wdata))
