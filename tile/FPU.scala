@@ -807,16 +807,6 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   val retire_2cycle = Reg(Bool())
   val wen_1cycle = RegInit(0.U(3.W))
   val wen_2cycle = RegInit(0.U(3.W))
-  retire_1cycle := io.retire
-  retire_2cycle := retire_1cycle
-  wen_1cycle := wen
-  wen_2cycle := wen_1cycle
-
-
-  r_if_overtaking := Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 2.U) && (wen_1cycle === 4.U)), 0.U, 
-                     Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 1.U) && (wen_1cycle === 2.U)), 0.U,
-                     Mux((io.r_if_overtaking.asBool &&  retire_2cycle && (wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle === 4.U)), 0.U, io.r_if_overtaking.asBool)))
-
 
   when (load_wb && !r_if_overtaking) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
@@ -958,6 +948,18 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
       }
     }
   }
+
+  retire_1cycle := io.retire
+  retire_2cycle := retire_1cycle
+  wen_1cycle := wen
+  wen_2cycle := wen_1cycle
+
+
+  r_if_overtaking := Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 2.U) && (wen_1cycle === 4.U)), 0.U, 
+                     Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 1.U) && (wen_1cycle === 2.U)), 0.U,
+                     Mux((io.r_if_overtaking.asBool &&  retire_2cycle && (wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle === 4.U)), 0.U, io.r_if_overtaking.asBool)))
+
+
 
   val waddr = Mux(divSqrt_wen, divSqrt_waddr, wbInfo(0).rd)
   val wtypeTag = Mux(divSqrt_wen, divSqrt_typeTag, wbInfo(0).typeTag)
