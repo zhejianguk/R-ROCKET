@@ -14,6 +14,7 @@ import freechips.rocketchip.rocket._
 import freechips.rocketchip.rocket.Instructions._
 import freechips.rocketchip.util._
 import freechips.rocketchip.util.property
+import freechips.rocketchip.guardiancouncil._
 
 case class FPUParams(
   minFLen: Int = 32,
@@ -207,10 +208,10 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val r_farf_bits = Input(UInt(64.W))
   val r_farf_idx = Input(UInt(8.W))
   val r_farf_valid = Input(UInt(1.W))
-  val r_if_overtaking = Input(UInt(1.W))
   val farfs = Output(Vec(32, UInt(64.W)))
   val retire = Input(UInt(1.W))
   val keep_clock_enabled = Bool(INPUT)
+  val core_trace = Bool(INPUT)
 }
 
 class FPUIO(implicit p: Parameters) extends FPUCoreIO ()(p) {
@@ -802,18 +803,24 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     io.farfs(i) := ieee(regfile(i))
   }
 
-  val r_if_overtaking = Wire(Bool())
   val retire_1cycle = Reg(Bool())
   val retire_2cycle = Reg(Bool())
   val wen_1cycle = RegInit(0.U(3.W))
   val wen_2cycle = RegInit(0.U(3.W))
 
-  when (load_wb && !r_if_overtaking) {
+  // There is one cycle delay for the F-REG's loading
+  val r_cannot_load_wb = Wire(Bool())
+  r_cannot_load_wb := Mux(retire_1cycle && load_wb, false.B, true.B)
+
+  when (load_wb && !r_cannot_load_wb) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
     regfile(load_wb_tag) := wdata
     assert(consistent(wdata))
-    if (enableCommitLog)
-      printf("f%d p%d 0x%x\n", load_wb_tag, load_wb_tag + 32, load_wb_data)
+    if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("FLT-LD: f%d p%d 0x%x\n", load_wb_tag, load_wb_tag + 32, load_wb_data))
+    }
+    }
     frfWriteBundle(0).wrdst := load_wb_tag
     frfWriteBundle(0).wrenf := true.B
     frfWriteBundle(0).wrdata := ieee(wdata)
@@ -953,11 +960,12 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   retire_2cycle := retire_1cycle
   wen_1cycle := wen
   wen_2cycle := wen_1cycle
+  
+  val r_cannot_wb = Wire(Bool())
+  r_cannot_wb        := Mux(((wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle === 4.U) && retire_2cycle), 0.U,
+                        Mux(((wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle =/= 4.U) && retire_1cycle), 0.U,
+                        Mux(((wen === 1.U) && (wen_1cycle =/= 2.U) && io.retire.asBool), 0.U,1.U)))
 
-
-  r_if_overtaking := Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 2.U) && (wen_1cycle === 4.U)), 0.U, 
-                     Mux((io.r_if_overtaking.asBool &&  retire_1cycle && (wen === 1.U) && (wen_1cycle === 2.U)), 0.U,
-                     Mux((io.r_if_overtaking.asBool &&  retire_2cycle && (wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle === 4.U)), 0.U, io.r_if_overtaking.asBool)))
 
 
 
@@ -965,11 +973,13 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   val wtypeTag = Mux(divSqrt_wen, divSqrt_typeTag, wbInfo(0).typeTag)
   val wdata = box(Mux(divSqrt_wen, divSqrt_wdata, (pipes.map(_.res.data): Seq[UInt])(wbInfo(0).pipeid)), wtypeTag)
   val wexc = (pipes.map(_.res.exc): Seq[UInt])(wbInfo(0).pipeid)
-  when (((!wbInfo(0).cp && wen(0)) || divSqrt_wen) && (!r_if_overtaking)) {
+  when (((!wbInfo(0).cp && wen(0)) || divSqrt_wen) && (!r_cannot_wb)) {
     assert(consistent(wdata))
     regfile(waddr) := wdata
-    if (enableCommitLog) {
-      printf("f%d p%d 0x%x\n", waddr, waddr + 32, ieee(wdata))
+    if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("FLT-WB: f%d p%d 0x%x\n", waddr, waddr + 32, ieee(wdata)))
+    }
     }
     frfWriteBundle(1).wrdst := waddr
     frfWriteBundle(1).wrenf := true.B

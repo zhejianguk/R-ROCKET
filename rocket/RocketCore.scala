@@ -1100,7 +1100,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.r_farf_idx := rsu_slave.io.arfs_idx_out
   io.fpu.r_farf_valid := rsu_slave.io.arfs_valid_out
   io.fpu.retire := wb_valid || io.rocc.resp.valid
-  io.fpu.r_if_overtaking := Mux(checker_mode.asBool, icsl_if_overtaking.asBool, false.B)
+  io.fpu.core_trace := io.core_trace.asBool
+  // io.fpu.r_if_overtaking := Mux(checker_mode.asBool, icsl_if_overtaking.asBool, false.B)
 
   /* R Feature --- LSL */
   /*
@@ -1215,8 +1216,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (csr.io.trace(0).valid && io.core_trace.asBool) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: %d [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] DASM(%x) sl_counter=[%x]\n",
-          io.hartid, coreMonitorBundle.timer, coreMonitorBundle.valid,
+      printf(midas.targetutils.SynthesizePrintf("C%d: [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] sl_counter=[%x]\n",
+          io.hartid, coreMonitorBundle.valid,
           coreMonitorBundle.pc,
           Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
           Mux(coreMonitorBundle.wrenx, coreMonitorBundle.wrdata, 0.U),
@@ -1225,7 +1226,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0val, 0.U),
           Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1src, 0.U),
           Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
-          coreMonitorBundle.inst, coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U)))
+          coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U)))
     }
   } else {
     /*
