@@ -962,10 +962,9 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   wen_2cycle := wen_1cycle
   
   val r_cannot_wb = Wire(Bool())
-  r_cannot_wb        := Mux(((wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle === 4.U) && retire_2cycle), 0.U,
-                        Mux(((wen === 1.U) && (wen_1cycle === 2.U) && (wen_2cycle =/= 4.U) && retire_1cycle), 0.U,
-                        Mux(((wen === 1.U) && (wen_1cycle =/= 2.U) && io.retire.asBool), 0.U,1.U)))
-
+  r_cannot_wb        := Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 0.U) && io.retire.asBool), 0.U,
+                        Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 1.U) && (wen_1cycle(2) === 0.U) && retire_1cycle), 0.U,
+                        Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 1.U) && (wen_1cycle(2) === 1.U) && retire_2cycle), 0.U, 1.U)))
 
 
 
@@ -973,7 +972,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   val wtypeTag = Mux(divSqrt_wen, divSqrt_typeTag, wbInfo(0).typeTag)
   val wdata = box(Mux(divSqrt_wen, divSqrt_wdata, (pipes.map(_.res.data): Seq[UInt])(wbInfo(0).pipeid)), wtypeTag)
   val wexc = (pipes.map(_.res.exc): Seq[UInt])(wbInfo(0).pipeid)
-  when (((!wbInfo(0).cp && wen(0)) || divSqrt_wen) && (!r_cannot_wb)) {
+  when (((!wbInfo(0).cp && wen(0) && !r_cannot_wb) || divSqrt_wen)) {
     assert(consistent(wdata))
     regfile(waddr) := wdata
     if (GH_GlobalParams.GH_DEBUG == 1) {
