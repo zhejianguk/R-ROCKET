@@ -212,6 +212,7 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val retire = Input(UInt(1.W))
   val keep_clock_enabled = Bool(INPUT)
   val core_trace = Bool(INPUT)
+  val checker_mode = Bool(INPUT)
 }
 
 class FPUIO(implicit p: Parameters) extends FPUCoreIO ()(p) {
@@ -810,7 +811,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
 
   // There is one cycle delay for the F-REG's loading
   val r_cannot_load_wb = Wire(Bool())
-  r_cannot_load_wb := Mux(retire_1cycle && load_wb, false.B, true.B)
+  r_cannot_load_wb := Mux(!io.checker_mode, false.B, Mux(retire_1cycle, false.B, true.B))
 
   when (load_wb && !r_cannot_load_wb) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
@@ -962,14 +963,15 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   wen_2cycle := wen_1cycle
   
   val r_cannot_wb = Wire(Bool())
-  r_cannot_wb        := Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 0.U) && io.retire.asBool), false.B,
+  r_cannot_wb        := Mux(!io.checker_mode, false.B,
+                        Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 0.U) && io.retire.asBool), false.B,
                         Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 1.U) && (wen_2cycle(2) === 0.U) && retire_1cycle), false.B,
-                        Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 1.U) && (wen_2cycle(2) === 1.U) && retire_2cycle), false.B, true.B)))
+                        Mux(((wen(0) === 1.U) && (wen_1cycle(1) === 1.U) && (wen_2cycle(2) === 1.U) && retire_2cycle), false.B, true.B))))
 
-  val r_cannot_wb_divsqrt = RegInit(false.B)
-  val divSqrt_inFlight_1cycle = Reg(Bool())
-  divSqrt_inFlight_1cycle := divSqrt_inFlight
-  r_cannot_wb_divsqrt := Mux(io.retire.asBool && divSqrt_inFlight && !divSqrt_inFlight_1cycle, false.B, Mux(divSqrt_wen.asBool, true.B, r_cannot_wb_divsqrt))
+  // val r_cannot_wb_divsqrt = RegInit(false.B)
+  // val divSqrt_inFlight_1cycle = Reg(Bool())
+  // divSqrt_inFlight_1cycle := divSqrt_inFlight
+  // r_cannot_wb_divsqrt := Mux(io.retire.asBool && divSqrt_inFlight && !divSqrt_inFlight_1cycle, false.B, Mux(divSqrt_wen.asBool, true.B, r_cannot_wb_divsqrt))
 
 
 
@@ -978,7 +980,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   val wtypeTag = Mux(divSqrt_wen, divSqrt_typeTag, wbInfo(0).typeTag)
   val wdata = box(Mux(divSqrt_wen, divSqrt_wdata, (pipes.map(_.res.data): Seq[UInt])(wbInfo(0).pipeid)), wtypeTag)
   val wexc = (pipes.map(_.res.exc): Seq[UInt])(wbInfo(0).pipeid)
-  when ((!wbInfo(0).cp && wen(0) && !r_cannot_wb) || (divSqrt_wen && !r_cannot_wb_divsqrt)) {
+  when ((!wbInfo(0).cp && wen(0) && !r_cannot_wb) || divSqrt_wen) {
     assert(consistent(wdata))
     regfile(waddr) := wdata
     if (GH_GlobalParams.GH_DEBUG == 1) {

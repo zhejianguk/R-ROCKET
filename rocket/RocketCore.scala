@@ -1100,6 +1100,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.r_farf_idx := rsu_slave.io.arfs_idx_out
   io.fpu.r_farf_valid := rsu_slave.io.arfs_valid_out
   io.fpu.retire := wb_valid || io.rocc.resp.valid
+  io.fpu.checker_mode := checker_mode
   io.fpu.core_trace := io.core_trace.asBool
   // io.fpu.r_if_overtaking := Mux(checker_mode.asBool, icsl_if_overtaking.asBool, false.B)
 
