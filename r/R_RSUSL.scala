@@ -201,8 +201,13 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (channel_enq_valid && (io.core_trace.asBool)) {
-        printf(midas.targetutils.SynthesizePrintf("ELU_ARF: an error is detected! [ARF_ID = %x] [farf_data_ECP = %x], [farf_data = %x], [arf_data_ECP = %x], [arf_data = %x]. \n", 
-        checking_counter_memdelay, farf_data_ECP, io.core_farfs_in(checking_counter), io.core_arfs_in(checking_counter)))
+        val p_farf_data                           = WireInit(0.U((params.xLen).W))
+        val farf_data                             = WireInit(0.U((params.xLen).W))
+        p_farf_data                              := io.core_farfs_in(checking_counter)
+        farf_data                                := io.core_arfs_in(checking_counter)
+
+        printf(midas.targetutils.SynthesizePrintf("ELU_ARF: an error is detected! [ARF_ID = %d] [farf_data_ECP = %x], [farf_data = %x], [arf_data_ECP = %x], [arf_data = %x]. \n", 
+        checking_counter_memdelay, farf_data_ECP, p_farf_data, arf_data_ECP, farf_data))
     }
   }
 }
