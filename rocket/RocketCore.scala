@@ -673,8 +673,11 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val fpu_kill_mem = mem_reg_valid && mem_ctrl.fp && io.fpu.nack_mem
   val replay_mem  = dcache_kill_mem || mem_reg_replay || fpu_kill_mem
   val killm_common = dcache_kill_mem || take_pc_wb || mem_reg_xcpt || !mem_reg_valid
-  div.io.kill := (killm_common && Reg(next = div.io.req.fire())) || (mem_ctrl.div && icsl_just_overtaking.asBool)
   val ctrl_killm = killm_common || mem_xcpt || fpu_kill_mem
+
+  val if_kill_div_r = Mux(checker_mode === 0.U, false.B, Mux(!ctrl_killm && mem_ctrl.div && (icsl_if_overtaking.asBool || icsl_just_overtaking.asBool), true.B, false.B))
+  div.io.kill := ((killm_common && Reg(next = div.io.req.fire())) || if_kill_div_r)
+
 
   // writeback stage
   wb_reg_valid := !ctrl_killm

@@ -194,20 +194,20 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   }
 
   channel_enq_valid                              := do_check.asBool && !if_check_completed.asBool && ((io.core_arfs_in(checking_counter_memdelay) =/= arf_data_ECP) ||  (io.core_farfs_in(checking_counter_memdelay) =/= farf_data_ECP))
-  channel_enq_data                               := Mux(channel_enq_valid.asBool, Cat(checking_counter_memdelay, farf_data_ECP, io.core_farfs_in(checking_counter), arf_data_ECP, io.core_arfs_in(checking_counter)), 0.U)
+  channel_enq_data                               := Mux(channel_enq_valid.asBool, Cat(checking_counter_memdelay, farf_data_ECP, io.core_farfs_in(checking_counter_memdelay), arf_data_ECP, io.core_arfs_in(checking_counter_memdelay)), 0.U)
   channel_deq_ready                              := io.elu_cp_deq.asBool
   io.elu_cp_data                                 := channel_deq_data
   io.elu_status                                  := ~channel_empty
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (channel_enq_valid && (io.core_trace.asBool)) {
-        val p_farf_data                           = WireInit(0.U((params.xLen).W))
-        val farf_data                             = WireInit(0.U((params.xLen).W))
-        p_farf_data                              := io.core_farfs_in(checking_counter)
-        farf_data                                := io.core_arfs_in(checking_counter)
+        val print_farf_data                       = WireInit(0.U((params.xLen).W))
+        val print_arf_data                        = WireInit(0.U((params.xLen).W))
+        print_farf_data                          := io.core_farfs_in(checking_counter_memdelay)
+        print_arf_data                           := io.core_arfs_in(checking_counter_memdelay)
 
         printf(midas.targetutils.SynthesizePrintf("ELU_ARF: an error is detected! [ARF_ID = %d] [farf_data_ECP = %x], [farf_data = %x], [arf_data_ECP = %x], [arf_data = %x]. \n", 
-        checking_counter_memdelay, farf_data_ECP, p_farf_data, arf_data_ECP, farf_data))
+        checking_counter_memdelay, farf_data_ECP, print_farf_data, arf_data_ECP, print_arf_data))
     }
   }
 }
