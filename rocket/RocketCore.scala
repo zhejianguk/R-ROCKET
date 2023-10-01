@@ -335,6 +335,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val lsl_req_ready_csr = Wire(UInt(width=1))
 
   val icsl_if_overtaking = Wire(UInt(width=1))
+  val icsl_just_overtaking = Wire(UInt(width=1))
   val icsl_if_ret_special_pc = Wire(UInt(width=1))
   //===== GuardianCouncil Function: End   ====//
 
@@ -672,7 +673,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val fpu_kill_mem = mem_reg_valid && mem_ctrl.fp && io.fpu.nack_mem
   val replay_mem  = dcache_kill_mem || mem_reg_replay || fpu_kill_mem
   val killm_common = dcache_kill_mem || take_pc_wb || mem_reg_xcpt || !mem_reg_valid
-  div.io.kill := killm_common && Reg(next = div.io.req.fire())
+  div.io.kill := (killm_common && Reg(next = div.io.req.fire())) || (mem_ctrl.div && icsl_just_overtaking.asBool)
   val ctrl_killm = killm_common || mem_xcpt || fpu_kill_mem
 
   // writeback stage
@@ -840,6 +841,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   checker_mode := icsl.io.icsl_checkermode
   io.clear_ic_status := icsl.io.clear_ic_status
   icsl_if_overtaking := icsl.io.if_overtaking | rsu_slave.io.core_hang_up
+  icsl_just_overtaking := icsl.io.if_just_overtaking
   icsl_if_ret_special_pc := icsl.io.if_ret_special_pc
   val returned_to_special_address_valid = Wire(Bool())
   icsl.io.returned_to_special_address_valid := returned_to_special_address_valid
@@ -1102,6 +1104,10 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.retire := wb_valid || io.rocc.resp.valid
   io.fpu.checker_mode := checker_mode
   io.fpu.core_trace := io.core_trace.asBool
+  io.fpu.if_overtaking := icsl.io.if_overtaking
+  io.fpu.if_just_overtaking := icsl.io.if_just_overtaking
+  icsl.io.something_inflight := !div.io.req.ready || io.fpu.fpu_inflight
+
   // io.fpu.r_if_overtaking := Mux(checker_mode.asBool, icsl_if_overtaking.asBool, false.B)
 
   /* R Feature --- LSL */

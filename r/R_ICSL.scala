@@ -19,12 +19,14 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val icsl_checkermode                           = Output(UInt(1.W))
   val clear_ic_status                            = Output(UInt(1.W))
   val if_overtaking                              = Output(UInt(1.W))
+  val if_just_overtaking                         = Output(UInt(1.W))
   val if_ret_special_pc                          = Output(UInt(1.W))
   val if_rh_cp_pc                                = Output(UInt(1.W))
   val if_check_completed                         = Input(UInt(1.W))
   val icsl_status                                = Output(UInt(2.W))
   val debug_sl_counter                           = Output(UInt(params.width_of_ic.W))
   val core_trace                                 = Input(UInt(1.W))
+  val something_inflight                         = Input(UInt(1.W))
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -74,7 +76,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
       clear_ic_status                           := 0.U
       icsl_checkermode                          := 1.U
       if_rh_cp_pc                               := 0.U
-      fsm_state                                 := Mux(if_instants_completion.asBool || if_slow_completion.asBool, fsm_postchecking, fsm_checking)
+      fsm_state                                 := Mux((if_instants_completion.asBool || if_slow_completion.asBool) && (!io.something_inflight), fsm_postchecking, fsm_checking)
     }
 
     is (fsm_postchecking){
@@ -106,6 +108,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   io.clear_ic_status                            := clear_ic_status
   io.icsl_checkermode                           := icsl_checkermode & io.if_correct_process 
   io.if_overtaking                              := if_overtaking
+  io.if_just_overtaking                         := if_just_overtaking
   io.if_ret_special_pc                          := if_ret_special_pc
   io.if_rh_cp_pc                                := if_rh_cp_pc
   io.icsl_status                                := Mux(fsm_state === fsm_nonchecking, 1.U, 0.U)

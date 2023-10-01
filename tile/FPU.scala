@@ -213,6 +213,9 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val keep_clock_enabled = Bool(INPUT)
   val core_trace = Bool(INPUT)
   val checker_mode = Bool(INPUT)
+  val if_overtaking = Bool(INPUT)
+  val if_just_overtaking = Bool(INPUT)
+  val fpu_inflight = Bool(OUTPUT)
 }
 
 class FPUIO(implicit p: Parameters) extends FPUCoreIO ()(p) {
@@ -945,7 +948,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   wen := wen >> 1
   when (mem_wen) {
     when (!killm) {
-      wen := wen >> 1 | memLatencyMask
+      wen := wen >> 1 | Mux(io.if_overtaking, 0.U, memLatencyMask)
     }
     for (i <- 0 until maxLatency-1) {
       when (!write_port_busy && memLatencyMask(i)) {
@@ -1019,7 +1022,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   io.illegal_rm := io.inst(14,12).isOneOf(5, 6) || io.inst(14,12) === 7 && io.fcsr_rm >= 5
 
   if (cfg.divSqrt) {
-    val divSqrt_inValid = mem_reg_valid && (mem_ctrl.div || mem_ctrl.sqrt) && !divSqrt_inFlight
+    val divSqrt_inValid = mem_reg_valid && (mem_ctrl.div || mem_ctrl.sqrt) && !divSqrt_inFlight && !io.if_overtaking && !io.if_just_overtaking
     val divSqrt_killed = RegNext(divSqrt_inValid && killm, true.B)
     when (divSqrt_inValid) {
       divSqrt_waddr := mem_reg_inst(11,7)
@@ -1050,6 +1053,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     }
 
     when (divSqrt_killed) { divSqrt_inFlight := false }
+    io.fpu_inflight := divSqrt_inFlight || divSqrt_inValid || divSqrt_wen || (wen =/= 0.U)
   } else {
     when (id_ctrl.div || id_ctrl.sqrt) { io.illegal_rm := true }
   }
