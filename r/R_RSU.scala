@@ -48,9 +48,13 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   val merge_counter                               = RegInit(0.U(8.W)) // 32/4 + 1 (PC) = 9 Packets in total
   val doSnapshot                                  = RegInit(0.U(1.W))
   val doMerge                                     = RegInit(0.U(1.W))
+  val io_merge_delay1                             = RegInit(0.U(1.W))
+  val io_merge_delay2                             = RegInit(0.U(1.W))
 
-  doSnapshot                                     := io.snapshot 
-  doMerge                                        := io.merge 
+  doSnapshot                                     := io.snapshot
+  io_merge_delay1                                := io.merge
+  io_merge_delay2                                := io_merge_delay1
+  doMerge                                        := io_merge_delay2
 
   
   when (doSnapshot === 1.U) {
@@ -102,7 +106,7 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   }
   
   io.rsu_merging                                   := merging
-  io.rsu_busy                                      := Mux(io.snapshot.asBool || io.merge.asBool || doSnapshot.asBool || doMerge.asBool || merging.asBool, 1.U, 0.U)
+  io.rsu_busy                                      := Mux(io.snapshot.asBool || io.merge.asBool || io_merge_delay1.asBool || io_merge_delay2.asBool || doSnapshot.asBool || doMerge.asBool || merging.asBool, 1.U, 0.U)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when ((doSnapshot === 1.U) && (io.core_trace.asBool)) {

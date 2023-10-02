@@ -837,14 +837,18 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   rsu_slave.io.clear_ic_status := icsl.io.clear_ic_status
 
   // Instantiate ICSL
+  val r_exception_record = RegInit(0.U(1.W))
+  r_exception_record := Mux(csr.io.r_exception.asBool, 1.U, Mux(csr.io.trace(0).valid && !csr.io.trace(0).exception && r_exception_record.asBool, 0.U, r_exception_record))
+
+
   icsl.io.ic_counter := io.ic_counter
   icsl.io.icsl_run := arf_copy_reg
   icsl.io.new_commit := csr.io.trace(0).valid && !csr.io.trace(0).exception
   icsl.io.if_correct_process := io.if_correct_process
   checker_mode := icsl.io.icsl_checkermode
   io.clear_ic_status := icsl.io.clear_ic_status
-  icsl_if_overtaking := icsl.io.if_overtaking | rsu_slave.io.core_hang_up
-  icsl_just_overtaking := icsl.io.if_just_overtaking
+  icsl_if_overtaking := (icsl.io.if_overtaking | rsu_slave.io.core_hang_up) & !r_exception_record
+  icsl_just_overtaking := (icsl.io.if_just_overtaking) & !r_exception_record
   icsl_if_ret_special_pc := icsl.io.if_ret_special_pc
   val returned_to_special_address_valid = Wire(Bool())
   icsl.io.returned_to_special_address_valid := returned_to_special_address_valid

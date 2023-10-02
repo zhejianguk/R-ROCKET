@@ -49,10 +49,9 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   val if_instants_completion                     = Mux((io.if_correct_process.asBool && io.new_commit.asBool && ((sl_counter + 1.U) >= ic_counter_shadow) && ic_counter_done.asBool), 1.U, 0.U)
   val if_slow_completion                         = (sl_counter >= ic_counter_shadow) && ic_counter_done.asBool
   val if_just_overtaking                         = Mux((io.if_correct_process.asBool && io.new_commit.asBool && ((sl_counter + 1.U) >= ic_counter_shadow)), 1.U, 0.U)
-  val cooldown_timer                             = RegInit(0.U(4.W))
 
 
-  val fsm_reset :: fsm_nonchecking :: fsm_checking :: fsm_cooling :: fsm_postchecking :: Nil = Enum(5)
+  val fsm_reset :: fsm_nonchecking :: fsm_checking :: fsm_postchecking :: Nil = Enum(4)
   val fsm_state                                  = RegInit(fsm_reset)
 
   switch (fsm_state) {
@@ -61,7 +60,6 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
       clear_ic_status                           := 1.U
       icsl_checkermode                          := 0.U
       if_rh_cp_pc                               := 0.U
-      cooldown_timer                            := 0.U
       fsm_state                                 := fsm_nonchecking
     }
 
@@ -70,7 +68,6 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
       clear_ic_status                           := 0.U
       icsl_checkermode                          := 0.U
       if_rh_cp_pc                               := 0.U
-      cooldown_timer                            := 0.U
       fsm_state                                 := Mux(icsl_run.asBool, fsm_checking, fsm_nonchecking)
     }
 
@@ -79,17 +76,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
       clear_ic_status                           := 0.U
       icsl_checkermode                          := 1.U
       if_rh_cp_pc                               := 0.U
-      cooldown_timer                            := 0.U
-      fsm_state                                 := Mux((if_instants_completion.asBool || if_slow_completion.asBool) && (!io.something_inflight), fsm_cooling, fsm_checking)
-    }
-
-    is (fsm_cooling){
-      sl_counter                                := sl_counter
-      clear_ic_status                           := 0.U
-      icsl_checkermode                          := 1.U
-      if_rh_cp_pc                               := 0.U
-      cooldown_timer                            := cooldown_timer + 1.U
-      fsm_state                                 := Mux(cooldown_timer === 7.U, fsm_postchecking, fsm_cooling)
+      fsm_state                                 := Mux((if_instants_completion.asBool || if_slow_completion.asBool) && (!io.something_inflight), fsm_postchecking, fsm_checking)
     }
 
 
@@ -121,8 +108,8 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   icsl_run                                      := io.icsl_run
   io.clear_ic_status                            := clear_ic_status
   io.icsl_checkermode                           := icsl_checkermode & io.if_correct_process 
-  io.if_overtaking                              := if_overtaking
-  io.if_just_overtaking                         := if_just_overtaking
+  io.if_overtaking                              := icsl_checkermode & if_overtaking 
+  io.if_just_overtaking                         := icsl_checkermode & if_just_overtaking
   io.if_ret_special_pc                          := if_ret_special_pc
   io.if_rh_cp_pc                                := if_rh_cp_pc
   io.icsl_status                                := Mux(fsm_state === fsm_nonchecking, 1.U, 0.U)
