@@ -789,7 +789,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val rf_waddr = Mux(ll_wen, ll_waddr, wb_waddr)
   val rf_wdata = Mux(dmem_resp_valid && dmem_resp_xpu, Mux(checker_mode === 1.U, lsl_resp_data, io.dmem.resp.bits.data(xLen-1, 0)),
                  Mux(ll_wen, ll_wdata,
-                 Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, lsl_resp_data_csr, csr.io.rw.rdata),
+                 Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, Mux(wb_ctrl.csr === CSR.R, lsl_resp_data_csr, csr.io.rw.rdata) csr.io.rw.rdata),
                  Mux(wb_ctrl.mul, mul.map(_.io.resp.bits.data).getOrElse(wb_reg_wdata),
                  wb_reg_wdata))))
 
@@ -797,7 +797,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_req_valid_csr := Mux(rf_wen, 
                        Mux(dmem_resp_valid && dmem_resp_xpu, false.B,
                        Mux(ll_wen, false.B,
-                       Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, true.B, false.B), false.B))), false.B)
+                       Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool && wb_ctrl.csr === CSR.R, true.B, false.B), false.B))), false.B)
 
   //===== GuardianCouncil Function: Start ====//
   /* R Features */

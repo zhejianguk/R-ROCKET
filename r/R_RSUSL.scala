@@ -87,23 +87,27 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   when (packet_valid === 1.U) {
     arfs_ss.write(packet_index, packet_arfs)
     farfs_ss.write(packet_index, packet_farfs)
+    /*
     if (GH_GlobalParams.GH_DEBUG == 1) { 
       when (io.core_trace.asBool){
         printf(midas.targetutils.SynthesizePrintf("PACKET_CPS: [Index = %d] [Packet_arfs = %x], [Packet_farfs = %x]. \n", 
         packet_index, packet_arfs, packet_farfs))
       }
     }
+    */
   } 
   
   when (packet_valid_ECP === 1.U) {
     arfs_ss_ECP.write(packet_index_ECP, packet_arfs_ECP)
     farfs_ss_ECP.write(packet_index_ECP, packet_farfs_ECP)
+    /*
     if (GH_GlobalParams.GH_DEBUG == 1) { 
       when (io.core_trace.asBool){
         printf(midas.targetutils.SynthesizePrintf("PACKET_CPE: [Index = %d] [Packet_arfs = %x], [Packet_farfs = %x]. \n", 
         packet_index_ECP, packet_arfs_ECP, packet_farfs_ECP))
       }
     }
+    */
   }
 
   pcarfs_ss                                      := Mux(packet_valid.asBool && (packet_index === 0x20.U), packet_arfs(39,0), pcarfs_ss)
