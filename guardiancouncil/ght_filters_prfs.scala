@@ -322,20 +322,20 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
                                                     Array((is_valid_t_buffer(1) =/= 0.U)  -> fsm_send_second,
                                                           ((is_valid_t_buffer(1) === 0.U) && (is_valid_t_buffer(2) =/= 0.U))  -> fsm_send_third,
                                                           ((is_valid_t_buffer(1) === 0.U) && (is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) =/= 0.U))  -> fsm_send_fourth,
-                                                          ((is_valid_t_buffer(1) === 0.U) && (is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U)) -> Mux((!buffer_empty(0)), fsm_reset_nxt_state, fsm_reset)
+                                                          ((is_valid_t_buffer(1) === 0.U) && (is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U)) -> Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), fsm_reset_nxt_state, fsm_reset)
                                                           )
                                                           )
 
   fsm_second_nxt_state                         := MuxCase(fsm_send_second, 
                                                     Array((is_valid_t_buffer(2) =/= 0.U)  -> fsm_send_third,
                                                           ((is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) =/= 0.U))  -> fsm_send_fourth,
-                                                          ((is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U)) -> Mux((!buffer_empty(0)), fsm_reset_nxt_state, fsm_reset)
+                                                          ((is_valid_t_buffer(2) === 0.U) && (is_valid_t_buffer(3) === 0.U)) -> Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), fsm_reset_nxt_state, fsm_reset)
                                                           )
                                                           )
 
   fsm_third_nxt_state                         := MuxCase(fsm_send_third, 
                                                     Array((is_valid_t_buffer(3) =/= 0.U)  -> fsm_send_fourth,
-                                                          (is_valid_t_buffer(3) === 0.U) -> Mux((!buffer_empty(0)), fsm_reset_nxt_state, fsm_reset)
+                                                          (is_valid_t_buffer(3) === 0.U) -> Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), fsm_reset_nxt_state, fsm_reset)
                                                           )
                                                           )
 
