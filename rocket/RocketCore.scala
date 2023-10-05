@@ -789,7 +789,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val rf_waddr = Mux(ll_wen, ll_waddr, wb_waddr)
   val rf_wdata = Mux(dmem_resp_valid && dmem_resp_xpu, Mux(checker_mode === 1.U, lsl_resp_data, io.dmem.resp.bits.data(xLen-1, 0)),
                  Mux(ll_wen, ll_wdata,
-                 Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, Mux(wb_ctrl.csr === CSR.R, lsl_resp_data_csr, csr.io.rw.rdata), csr.io.rw.rdata),
+                 Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, lsl_resp_data_csr, csr.io.rw.rdata),
                  Mux(wb_ctrl.mul, mul.map(_.io.resp.bits.data).getOrElse(wb_reg_wdata),
                  wb_reg_wdata))))
 
@@ -797,7 +797,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_req_valid_csr := Mux(rf_wen, 
                        Mux(dmem_resp_valid && dmem_resp_xpu, false.B,
                        Mux(ll_wen, false.B,
-                       Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool && wb_ctrl.csr === CSR.R, true.B, false.B), false.B))), false.B)
+                       Mux(wb_ctrl.csr =/= CSR.N, Mux(checker_mode.asBool, true.B, false.B), false.B))), false.B)
 
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
@@ -837,8 +837,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   rsu_slave.io.clear_ic_status := icsl.io.clear_ic_status
 
   // Instantiate ICSL
-  val r_exception_record = RegInit(0.U(1.W))
-  r_exception_record := Mux(csr.io.r_exception.asBool, 1.U, Mux(csr.io.trace(0).valid && !csr.io.trace(0).exception && r_exception_record.asBool, 0.U, r_exception_record))
+  // val r_exception_record = RegInit(0.U(1.W))
+  // r_exception_record := Mux(csr.io.r_exception.asBool, 1.U, Mux(csr.io.trace(0).valid && !csr.io.trace(0).exception && r_exception_record.asBool, 0.U, r_exception_record))
 
 
   icsl.io.ic_counter := io.ic_counter
@@ -847,8 +847,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl.io.if_correct_process := io.if_correct_process
   checker_mode := icsl.io.icsl_checkermode
   io.clear_ic_status := icsl.io.clear_ic_status
-  icsl_if_overtaking := (icsl.io.if_overtaking | rsu_slave.io.core_hang_up) & !r_exception_record
-  icsl_just_overtaking := (icsl.io.if_just_overtaking) & !r_exception_record
+  icsl_if_overtaking := (icsl.io.if_overtaking | rsu_slave.io.core_hang_up) // & !r_exception_record
+  icsl_just_overtaking := (icsl.io.if_just_overtaking) // & !r_exception_record
   icsl_if_ret_special_pc := icsl.io.if_ret_special_pc
   val returned_to_special_address_valid = Wire(Bool())
   icsl.io.returned_to_special_address_valid := returned_to_special_address_valid
@@ -1047,10 +1047,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     // ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
   ctrl_killd := !ibuf.io.inst(0).valid || ibuf.io.inst(0).bits.replay || take_pc_mem_wb || ctrl_stalld || csr.io.interrupt
 
-  val returned_to_special_address = 
-    Mux(wb_xcpt || csr.io.eret, false.B,
-    Mux(replay_wb,              Mux(icsl_if_ret_special_pc.asBool, true.B ,false.B), false.B))
-  returned_to_special_address_valid := take_pc && returned_to_special_address
+  returned_to_special_address_valid := wb_valid || io.rocc.resp.valid && (wb_reg_pc === pc_special)
 
   io.imem.req.valid := take_pc
   io.imem.req.bits.speculative := !take_pc_wb
