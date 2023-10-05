@@ -83,8 +83,8 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
     is (fsm_postchecking){
       sl_counter                                := sl_counter
       clear_ic_status                           := 0.U
-      icsl_checkermode                          := Mux(io.returned_to_special_address_valid.asBool, 0.U, 1.U)
-      if_rh_cp_pc                               := Mux(io.returned_to_special_address_valid.asBool, 0.U, 1.U)
+      icsl_checkermode                          := 1.U
+      if_rh_cp_pc                               := 1.U
       fsm_state                                 := Mux(io.returned_to_special_address_valid.asBool, fsm_reset, fsm_postchecking)
     }
 
