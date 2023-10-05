@@ -745,7 +745,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val wb_set_sboard = wb_ctrl.div || wb_dcache_miss || wb_ctrl.rocc
   val replay_wb_common = Mux(checker_mode === 1.U, replay_wb_lsl, io.dmem.s2_nack) || wb_reg_replay
   val replay_wb_without_overtaken = replay_wb_common || replay_wb_rocc
-  val wb_should_be_valid_but_be_overtaken = Mux(checker_mode.asBool, icsl_if_overtaking.asBool && wb_reg_valid && !replay_wb_without_overtaken && !wb_xcpt && !io.rocc.resp.valid, false.B)
+  val wb_should_be_valid_but_be_overtaken = Mux(checker_mode.asBool, (wb_reg_pc =/= pc_special) && icsl_if_overtaking.asBool && wb_reg_valid && !replay_wb_without_overtaken && !wb_xcpt && !io.rocc.resp.valid, false.B)
   val replay_wb = replay_wb_without_overtaken || wb_should_be_valid_but_be_overtaken
   take_pc_wb := replay_wb || wb_xcpt || csr.io.eret || wb_reg_flush_pipe
   //===== GuardianCouncil Function: End   ====//
@@ -824,7 +824,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   }
   rsu_slave.io.elu_cp_deq := Mux(io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
   rsu_slave.io.core_trace := io.core_trace
-  csr.io.core_trace := io.core_trace 
+  csr.io.core_trace := io.core_trace
 
   csr.io.pfarf_valid := rsu_slave.io.pfarf_valid_out
   csr.io.fcsr_in := rsu_slave.io.fcsr_out
@@ -1053,7 +1053,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.imem.req.bits.speculative := !take_pc_wb
   io.imem.req.bits.pc :=
     Mux(wb_xcpt || csr.io.eret, csr.io.evec, // exception or [m|s]ret
-    Mux(replay_wb,              Mux(icsl_if_ret_special_pc.asBool, pc_special, wb_reg_pc),   // replay
+    Mux(replay_wb,              Mux(icsl_if_ret_special_pc.asBool && wb_should_be_valid_but_be_overtaken.asBool, pc_special, wb_reg_pc),   // replay
                                 mem_npc))    // flush or branch misprediction
   io.imem.flush_icache := wb_reg_valid && wb_ctrl.fence_i && (Mux(checker_mode === 1.U, false.B, !io.dmem.s2_nack))
   io.imem.might_request := {
