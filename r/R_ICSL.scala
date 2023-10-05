@@ -107,9 +107,9 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   
   icsl_run                                      := io.icsl_run
   io.clear_ic_status                            := clear_ic_status
-  io.icsl_checkermode                           := icsl_checkermode & io.if_correct_process 
-  io.if_overtaking                              := icsl_checkermode & if_overtaking 
-  io.if_just_overtaking                         := icsl_checkermode & if_just_overtaking
+  io.icsl_checkermode                           := icsl_checkermode & io.if_correct_process
+  io.if_overtaking                              := (icsl_checkermode & if_overtaking) | (fsm_state =/= fsm_postchecking)
+  io.if_just_overtaking                         := (icsl_checkermode & if_just_overtaking) | (fsm_state =/= fsm_postchecking)
   io.if_ret_special_pc                          := if_ret_special_pc
   io.if_rh_cp_pc                                := if_rh_cp_pc
   io.icsl_status                                := Mux(fsm_state === fsm_nonchecking, 1.U, 0.U)

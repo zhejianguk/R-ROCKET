@@ -824,7 +824,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   }
   rsu_slave.io.elu_cp_deq := Mux(io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
   rsu_slave.io.core_trace := io.core_trace
-
+  csr.io.core_trace := io.core_trace 
 
   csr.io.pfarf_valid := rsu_slave.io.pfarf_valid_out
   csr.io.fcsr_in := rsu_slave.io.fcsr_out
@@ -1047,7 +1047,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     // ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
   ctrl_killd := !ibuf.io.inst(0).valid || ibuf.io.inst(0).bits.replay || take_pc_mem_wb || ctrl_stalld || csr.io.interrupt
 
-  returned_to_special_address_valid := wb_valid || io.rocc.resp.valid && (wb_reg_pc === pc_special)
+  returned_to_special_address_valid := (wb_valid || io.rocc.resp.valid) && (wb_reg_pc === pc_special)
 
   io.imem.req.valid := take_pc
   io.imem.req.bits.speculative := !take_pc_wb

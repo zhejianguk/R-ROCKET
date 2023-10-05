@@ -292,6 +292,7 @@ class CSRFileIO(implicit p: Parameters) extends CoreBundle
   val pfarf_valid = Bits(INPUT, 1)
   val fcsr_in = Bits(INPUT, 8)
   val r_exception = Bits(OUTPUT, 1)
+  val core_trace = Bits(INPUT, 1)
   //===== GuardianCouncil Function: End ====//
 
   val vector = usingVector.option(new Bundle {
@@ -1143,7 +1144,9 @@ class CSRFile(
   when (io.fcsr_flags.valid) {
     reg_fflags := reg_fflags | io.fcsr_flags.bits
     set_fs_dirty := true
-    printf(midas.targetutils.SynthesizePrintf("C%x: CSR, reg_fflags := %x \n", io.hartid, reg_fflags | io.fcsr_flags.bits))
+    when (io.core_trace.asBool){
+      printf(midas.targetutils.SynthesizePrintf("C%x: CSR, reg_fflags := %x \n", io.hartid, reg_fflags | io.fcsr_flags.bits))
+    }
   }
 
   io.vector.foreach { vio =>
@@ -1252,7 +1255,9 @@ class CSRFile(
         set_fs_dirty := true
         reg_fflags := wdata
         reg_frm := wdata >> reg_fflags.getWidth
-        printf(midas.targetutils.SynthesizePrintf("C%x: CSR, reg_fflags := %x, reg_frm = %x \n", io.hartid, wdata, wdata >> reg_fflags.getWidth))
+        when (io.core_trace.asBool){
+          printf(midas.targetutils.SynthesizePrintf("C%x: CSR, reg_fflags := %x, reg_frm = %x \n", io.hartid, wdata, wdata >> reg_fflags.getWidth))
+        }
       }
     }
     if (usingDebug) {
