@@ -739,7 +739,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val wb_wxd = wb_reg_valid && wb_ctrl.wxd && !io.rocc.resp.valid
   val replay_wb_rocc = wb_reg_valid && wb_ctrl.rocc && Bool(false) // in guardian council, rocc.cmd.ready is always ready
   val replay_wb_lsl = Mux((checker_mode === 1.U), lsl_resp_replay.asBool || lsl_resp_replay_csr.asBool , false.B)
-  val wb_csr = (wb_reg_inst(6,0) === 0x73.U) && (wb_reg_inst(14,12) === 0x2.U) && wb_reg_valid
+  val wb_csr = (wb_reg_inst(6,0) === 0x73.U) && ((wb_reg_inst(14,12) === 0x2.U) || (wb_reg_inst(14,12) === 0x1.U)) && wb_reg_valid
   lsl_resp_replay_csr := Mux(checker_mode.asBool, wb_csr && !lsl_req_ready_csr, false.B)
 
   val wb_set_sboard = wb_ctrl.div || wb_dcache_miss || wb_ctrl.rocc
