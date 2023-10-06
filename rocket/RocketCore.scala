@@ -748,7 +748,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val wb_should_be_valid_but_be_overtaken = Mux(checker_mode.asBool, icsl_if_overtaking.asBool && wb_reg_valid && !replay_wb_without_overtaken && !replay_wb_lsl && !wb_xcpt && !io.rocc.resp.valid, false.B)
   val let_ret_s_commit = wb_reg_valid && !wb_xcpt && !io.rocc.resp.valid && (wb_reg_pc === pc_special)
   val wb_r_replay = ((wb_should_be_valid_but_be_overtaken || replay_wb_lsl) && !let_ret_s_commit)
-  val replay_wb = replay_wb_without_overtaken || wb_should_be_valid_but_be_overtaken
+  val replay_wb = replay_wb_without_overtaken || wb_r_replay
   take_pc_wb := replay_wb || wb_xcpt || csr.io.eret || wb_reg_flush_pipe
   //===== GuardianCouncil Function: End   ====//
 
