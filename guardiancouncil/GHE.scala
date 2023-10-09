@@ -122,6 +122,9 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     /* R Features */
     val doICCTRL                = (cmd.fire && (funct === 0x70.U))
     val doSetTValue             = (cmd.fire && (funct === 0x71.U))
+    val doStoreFromChecker      = (cmd.fire && (funct === 0x72.U))
+    val doStoreFromMain         = (cmd.fire && (funct === 0x73.U))
+    val doRecord                = (cmd.fire && (funct === 0x75.U))
 
     val ghe_packet_in           = RegInit(0x0.U(gh_packet_width.W))
     ghe_packet_in              := io.ghe_packet_in
@@ -341,4 +344,14 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val core_trace              = RegInit(0.U(1.W))
     core_trace                 := Mux(doCoreTrace, rs1_val(0), core_trace)
     io.core_trace_out          := core_trace
+    /* Context Record */ 
+    val store_from_checker      = RegInit(0.U(1.W))
+    when (doStoreFromChecker) {
+      store_from_checker       := 1.U
+    } 
+    
+    when (doStoreFromMain) {
+      store_from_checker       := 0.U
+    }
+    io.record_and_store_out    := Cat(doRecord, store_from_checker)
 }

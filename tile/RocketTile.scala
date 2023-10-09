@@ -163,6 +163,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
 
   val arfs_if_CPS = Mux(ptype_rcu.asBool && (packet_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
   val core_trace = Wire(0.U(1.W))
+  val record_and_store = Wire(0.U(2.W))
 
 
   val packet_fg = Mux((ptype_fg === 1.U), packet_in, 0.U)
@@ -218,7 +219,8 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     core.io.ic_counter := outer.ic_counter_SKNode.bundle
     outer.clear_ic_status_SRNode.bundle := core.io.clear_ic_status
   }
-  core.io.core_trace := core_trace 
+  core.io.core_trace := core_trace
+  core.io.record_and_store := record_and_store
     
   //===== GuardianCouncil Function: End ====//
 
@@ -295,6 +297,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     cmdRouter.get.io.elu_status_in := core.io.elu_status
     s_or_r := cmdRouter.get.io.s_or_r_out(0)
     core_trace := cmdRouter.get.io.core_trace_out
+    record_and_store := cmdRouter.get.io.record_and_store_out
     cmdRouter.get.io.ght_satp_ppn := core.io.ptw.ptbr.ppn
     cmdRouter.get.io.ght_sys_mode := core.io.ght_prv
     if_correct_process_bridge.io.in := cmdRouter.get.io.if_correct_process_out

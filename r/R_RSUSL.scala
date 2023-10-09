@@ -25,7 +25,7 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val arfs_index = Input(UInt(8.W))
   val arfs_if_ARFS = Input(UInt(1.W))
   val arfs_if_CPS = Input(UInt(1.W))
-  val copy_arfs = Input(UInt(1.W))
+  val paste_arfs = Input(UInt(1.W))
   val rsu_status = Output(UInt(2.W))
   val clear_ic_status = Input(UInt(1.W))
 
@@ -40,6 +40,8 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val elu_status = Output(UInt(1.W))
 
   val core_trace = Input(UInt(1.W))
+  val record_context = Input(UInt(1.W))
+  val store_from_checker = Input(UInt(1.W)) // 0: from main; 1: from checker.
 }
 
 trait HasR_RSUSLIO extends BaseModule {
@@ -56,6 +58,9 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   val farfs_ss                                    = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
   val arfs_ss_ECP                                 = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
   val farfs_ss_ECP                                = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
+  val arfs_ss_GMode                               = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
+  val farfs_ss_GMode                              = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
+
   val pcarfs_ss                                   = RegInit(0.U(40.W))
 
   val if_RSU_packet                               = WireInit(0.U(1.W))
@@ -70,6 +75,27 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   packet_farfs                                   := Mux(if_RSU_packet === 1.U, io.arfs_merge(127,64), 0.U)
   packet_index                                   := Mux(if_RSU_packet === 1.U, io.arfs_index, 0.U)
 
+  /* Storing the checker's current states */
+  val recording_context                           = Reg(Bool())
+  val recording_counter                           = RegInit(20.U(7.W))
+
+
+
+  when (io.record_context.asBool && !recording_context) {
+    recording_context                            := true.B
+    recording_counter                            := 0.U
+  } .elsewhen (recording_context === 1.U){
+    recording_context                            := Mux(recording_counter === 0x20.U, false.B, true.B)
+    recording_counter                            := Mux(recording_counter === 0x20.U, 0.U, recording_counter + 1.U)
+  } .otherwise {
+    recording_context                            := recording_context
+    recording_counter                            := recording_counter
+  }
+
+  when (recording_context) {
+    arfs_ss_GMode.write(recording_counter, io.core_arfs_in(recording_counter))
+    farfs_ss_GMode.write(recording_counter, io.core_farfs_in(recording_counter))
+  }
 
   /* Loading snapshot at End of Check Point from RSU Master */
   val if_RSU_packet_ECP                           = WireInit(0.U(1.W))
@@ -136,8 +162,8 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   apply_counter_memdelay                         := apply_counter
   arf_addr                                       := Mux(apply_snapshot.asBool, apply_counter, 0.U)
   farf_addr                                      := Mux(apply_snapshot.asBool, apply_counter, 0.U)
-  arf_data                                       := arfs_ss.read(arf_addr, apply_snapshot.asBool)
-  farf_data                                      := farfs_ss.read(farf_addr, apply_snapshot.asBool)
+  arf_data                                       := Mux(!io.store_from_checker, arfs_ss.read(arf_addr, apply_snapshot.asBool), arfs_ss_GMode.read(arf_addr, apply_snapshot.asBool))
+  farf_data                                      := Mux(!io.store_from_checker, farfs_ss.read(farf_addr, apply_snapshot.asBool), farfs_ss_GMode.read(arf_addr, apply_snapshot.asBool))
 
   arf_addr_ECP                                   := Mux(io.do_cp_check.asBool, checking_counter, 0.U)
   farf_addr_ECP                                  := Mux(io.do_cp_check.asBool, checking_counter, 0.U)
@@ -145,7 +171,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   farf_data_ECP                                  := farfs_ss_ECP.read(farf_addr_ECP,io.do_cp_check.asBool)
 
 
-  when ((io.copy_arfs === 0x01.U) && (apply_snapshot === 0.U)) {
+  when ((io.paste_arfs === 0x01.U) && (apply_snapshot === 0.U)) {
     apply_snapshot                               := 1.U
     apply_counter                                := 0.U
   } .elsewhen (apply_snapshot === 1.U){
@@ -176,7 +202,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   io.fcsr_out                                    := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), farf_data, 0.U)
   io.pfarf_valid_out                             := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), 1.U, 0.U)
   io.cdc_ready                                   := packet_valid | packet_valid_ECP
-  io.core_hang_up                                := apply_snapshot | apply_snapshot_memdelay
+  io.core_hang_up                                := apply_snapshot | apply_snapshot_memdelay | io.record_context | recording_context
 
   io.rsu_status                                  := rsu_status
 

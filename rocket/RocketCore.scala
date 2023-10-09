@@ -833,10 +833,12 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   // Added one cycle delay to ensure the RCU being operated at commited stage 
   // Avodiing uninteded reg write after arf_copy
-  val arf_copy_reg = Reg(0.U(1.W))
-  arf_copy_reg := io.arf_copy_in
-  rsu_slave.io.copy_arfs := arf_copy_reg
+  val arf_paste_reg = Reg(0.U(1.W))
+  arf_paste_reg := io.arf_copy_in
+  rsu_slave.io.paste_arfs := arf_paste_reg
   rsu_slave.io.clear_ic_status := icsl.io.clear_ic_status
+  rsu_slave.io.record_context := io.record_and_store(1)
+  rsu_slave.io.store_from_checker := io.record_and_store(0)
 
   // Instantiate ICSL
   val r_exception_record = RegInit(0.U(1.W))
@@ -844,7 +846,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
 
   icsl.io.ic_counter := io.ic_counter
-  icsl.io.icsl_run := arf_copy_reg
+  icsl.io.icsl_run := arf_paste_reg & (~io.record_and_store(0))
   icsl.io.new_commit := csr.io.trace(0).valid && !csr.io.trace(0).exception
   icsl.io.if_correct_process := io.if_correct_process
   checker_mode := icsl.io.icsl_checkermode
