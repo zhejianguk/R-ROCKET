@@ -110,7 +110,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       crnt_mask                                 := crnt_mask
       nxt_target                                := nxt_target
       if_filtering                              := 0.U
-      if_pipeline_stall                         := Mux(fsm_ini.asBool, 0.U, Mux(exception.asBool, 0.U, 1.U))
+      if_pipeline_stall                         := Mux(fsm_ini.asBool, 0.U, Mux((exception.asBool || (!io.correct_process.asBool)), 0.U, 1.U))
       exception                                 := Mux(exception.asBool && io.ic_syscall_back.asBool, 0.U, exception)
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
