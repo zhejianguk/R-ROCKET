@@ -162,7 +162,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val ptype_rcu = Mux(s_or_r.asBool && (packet_index(2,0) === 7.U), 1.U, 0.U)
 
   val arfs_if_CPS = Mux(ptype_rcu.asBool && (packet_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
-  val core_trace = Wire(0.U(1.W))
+  val core_trace = Wire(0.U(2.W))
   val record_and_store = Wire(0.U(2.W))
 
 
@@ -219,7 +219,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     core.io.ic_counter := outer.ic_counter_SKNode.bundle
     outer.clear_ic_status_SRNode.bundle := core.io.clear_ic_status
   }
-  core.io.core_trace := core_trace
+  core.io.core_trace := core_trace(0)
   core.io.record_and_store := record_and_store
     
   //===== GuardianCouncil Function: End ====//

@@ -341,8 +341,8 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     io.fi_sel_out             := Mux(doFIRead, rs1_val(7,0), 0.U)
 
     /* Core Trace */
-    val core_trace              = RegInit(0.U(1.W))
-    core_trace                 := Mux(doCoreTrace, rs1_val(0), core_trace)
+    val core_trace              = RegInit(0.U(2.W))
+    core_trace                 := Mux(doCoreTrace, rs1_val(1,0), core_trace)
     io.core_trace_out          := core_trace
     /* Context Record */ 
     val store_from_checker      = RegInit(0.U(1.W))
