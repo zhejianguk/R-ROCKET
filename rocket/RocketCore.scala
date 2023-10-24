@@ -750,6 +750,13 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val wb_r_replay = ((wb_should_be_valid_but_be_overtaken || replay_wb_lsl) && !let_ret_s_commit)
   val replay_wb = replay_wb_without_overtaken || wb_r_replay
   take_pc_wb := replay_wb || wb_xcpt || csr.io.eret || wb_reg_flush_pipe
+
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (replay_wb && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: re-wb[%x], [%x], [%x], [%x].\n",
+          io.hartid, replay_wb_common.asUInt, wb_should_be_valid_but_be_overtaken.asUInt, replay_wb_lsl.asUInt, let_ret_s_commit.asUInt))
+    }
+  }
   //===== GuardianCouncil Function: End   ====//
 
   // writeback arbitration
@@ -1231,7 +1238,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (csr.io.trace(0).valid && io.core_trace.asBool) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] sl_counter=[%x]\n",
+      printf(midas.targetutils.SynthesizePrintf("C%d: [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] sl_counter=[%x], rf_sl_counter=[%x]\n",
           io.hartid, coreMonitorBundle.valid,
           coreMonitorBundle.pc,
           Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
@@ -1241,7 +1248,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0val, 0.U),
           Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1src, 0.U),
           Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
-          coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U)))
+          coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U), io.ic_counter))
     }
   } else {
     /*
