@@ -92,9 +92,15 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     val fsm_state_delay                          = RegInit(fsm_reset)
-    fsm_state_delay                              := fsm_state
+    val ic_counter_shadow_delay                  = RegInit(0.U((params.width_of_ic-1).W))
+    fsm_state_delay                             := fsm_state
+    ic_counter_shadow_delay                     := ic_counter_shadow
     when ((fsm_state_delay =/= fsm_state) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("fsm_state=[%x]\n", fsm_state))
+    }
+    
+    when ((ic_counter_shadow_delay =/= ic_counter_shadow) && (io.core_trace.asBool)) {
+      printf(midas.targetutils.SynthesizePrintf("ic_counter_ref=[%x]\n", ic_counter_shadow))
     }
   }
 

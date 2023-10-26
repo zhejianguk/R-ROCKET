@@ -792,6 +792,13 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   // val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt
   // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
   val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt && !io.rocc.resp.valid
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (wb_reg_valid && !wb_valid && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: bl-wb[%x], [%x].\n",
+          io.hartid, replay_wb.asUInt, wb_xcpt.asUInt))
+    }
+  }
+  
   //===== GuardianCouncil Function: End   ====//
   val wb_wen = wb_valid && wb_ctrl.wxd && !lsl_resp_replay_csr
   val rf_wen = wb_wen || ll_wen

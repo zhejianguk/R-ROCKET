@@ -1144,9 +1144,11 @@ class CSRFile(
   when (io.fcsr_flags.valid) {
     reg_fflags := reg_fflags | io.fcsr_flags.bits
     set_fs_dirty := true
+    /*
     when (io.core_trace.asBool){
       printf(midas.targetutils.SynthesizePrintf("C%x: CSR, reg_fflags := %x \n", io.hartid, reg_fflags | io.fcsr_flags.bits))
     }
+    */ 
   }
 
   io.vector.foreach { vio =>
@@ -1255,9 +1257,11 @@ class CSRFile(
         set_fs_dirty := true
         reg_fflags := wdata
         reg_frm := wdata >> reg_fflags.getWidth
+        /*
         when (io.core_trace.asBool){
           printf(midas.targetutils.SynthesizePrintf("C%x: CSR, reg_fflags := %x, reg_frm = %x \n", io.hartid, wdata, wdata >> reg_fflags.getWidth))
         }
+        */
       }
     }
     if (usingDebug) {
