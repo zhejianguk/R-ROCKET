@@ -1065,6 +1065,17 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     // ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
   ctrl_killd := !ibuf.io.inst(0).valid || ibuf.io.inst(0).bits.replay || take_pc_mem_wb || ctrl_stalld || csr.io.interrupt
 
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (ctrl_killd && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: kd [%x], [%x], [%x], [%x], [%x].\n",
+          io.hartid, ibuf.io.inst(0).valid.asUInt, ibuf.io.inst(0).bits.replay.asUInt, take_pc_mem_wb.asUInt, ctrl_stalld.asUInt, csr.io.interrupt.asUInt))
+    }
+    when (ctrl_stalld && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: sd [%x], [%x], [%x], [%x], [%x], [%x], [%x].\n",
+          io.hartid, rsu_slave.io.core_hang_up.asUInt, id_ex_hazard.asUInt, id_mem_hazard.asUInt, id_wb_hazard.asUInt, id_sboard_hazard.asUInt, (csr.io.singleStep && (ex_reg_valid || mem_reg_valid || wb_reg_valid)).asUInt, csr.io.csr_stall.asUInt))
+    }
+  }
+
   returned_to_special_address_valid := (wb_valid || io.rocc.resp.valid) && (wb_reg_pc === pc_special)
 
   io.imem.req.valid := take_pc
