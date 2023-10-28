@@ -108,6 +108,7 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   io.rsu_merging                                   := merging
   io.rsu_busy                                      := Mux(io.snapshot.asBool || io.merge.asBool || io_merge_delay1.asBool || io_merge_delay2.asBool || doSnapshot.asBool || doMerge.asBool || merging.asBool, 1.U, 0.U)
 
+  /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when ((doSnapshot === 1.U) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("[CHECK POINTS --- Boom]: ARFS = [%x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x    %x]\n", 
@@ -117,4 +118,5 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
       io.arfs_in(24), io.arfs_in(25), io.arfs_in(26), io.arfs_in(27),io.arfs_in(28), io.arfs_in(29), io.arfs_in(30), io.arfs_in(31)))
     }
   }
+  */ 
 }

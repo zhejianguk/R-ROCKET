@@ -212,6 +212,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
 
   
 
+  /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when ((io.ic_incr =/= 0.U) && (fsm_state === fsm_check) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("sl_counter=[%x]\n", (ic_counter(crnt_target)+io.ic_incr)))
@@ -223,6 +224,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       printf(midas.targetutils.SynthesizePrintf("fsm_state=[%x]\n", fsm_state))
     }
   }
+  */
 
 
   // Manage ic_status and ic_counter

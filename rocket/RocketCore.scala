@@ -1286,6 +1286,22 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     */
   }
 
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: ex-[%x][%x], mem[%x][%x], wb[%x][%x].\n",
+          io.hartid, ex_reg_pc, ex_reg_valid.asUInt, mem_reg_pc, mem_reg_valid.asUInt, wb_reg_pc, wb_reg_valid.asUInt))
+    }
+
+    when (ctrl_killx && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: kx-[%x][%x][%x]\n",
+          io.hartid, take_pc_mem_wb.asUInt, replay_ex.asUInt, ex_reg_valid.asUInt))
+    }
+
+    when (ctrl_killm && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: kx-[%x][%x][%x]\n",
+          io.hartid, killm_common.asUInt, mem_xcpt.asUInt, fpu_kill_mem.asUInt))
+    }
+  }
   // CoreMonitorBundle for late latency writes
   val xrfWriteBundle = Wire(new CoreMonitorBundle(xLen, fLen))
 
