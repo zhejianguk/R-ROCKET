@@ -1013,9 +1013,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           id_waddr,  ((id_ctrl.wxd  && id_waddr  =/= UInt(0)).asUInt)))
     }
     
-    val id_scoreboard_delayed = Reg(0.U(32.W))
-    id_scoreboard_delayed := sboard.r_scoreboard
-      when ((id_scoreboard_delayed =/= sboard.r_scoreboard) && io.core_trace.asBool) {
+      when (sboard.r_scoreboard_updated.asBool && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: sb-[%x]\n",
           io.hartid, sboard.r_scoreboard))
     }
@@ -1378,7 +1376,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     def clear(en: Bool, addr: UInt): Unit = update(en, _next & ~mask(en, addr))
     def read(addr: UInt): Bool = r(addr)
     def readBypassed(addr: UInt): Bool = _next(addr)
-    val r_scoreboard = Output(UInt(32.W))
+    val r_scoreboard = Reg(UInt(32.W))
+    val r_scoreboard_updated = Reg(UInt(1.W))
 
     private val _r = Reg(init=Bits(0, n))
     private val r = if (zero) (_r >> 1 << 1) else _r
@@ -1390,7 +1389,11 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
       ens = ens || en
       when (ens) { _r := _next }
     }
+    private val r_delayed = Reg(init=Bits(0, n))
+    r_delayed := r
+
     r_scoreboard := r
+    r_scoreboard_updated := Mux(r_delayed =/= r, 1.U, 0.U)
   }
 }
 
