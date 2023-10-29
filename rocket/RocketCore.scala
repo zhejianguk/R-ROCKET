@@ -1004,6 +1004,25 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val id_sboard_hazard = checkHazards(hazard_targets, rd => sboard.read(rd) && !id_sboard_clear_bypass(rd))
   sboard.set(wb_set_sboard && wb_wen, wb_waddr)
 
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (id_sboard_hazard && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: sh-[%x], rs1[%x][%x], rs2[%x][%x], rd[%x][%x]\n",
+          io.hartid, sboard.r_scoreboard, 
+          id_raddr1, (id_ctrl.rxs1 && id_raddr1 =/= UInt(0)).asUInt, 
+          id_raddr2, (id_ctrl.rxs2 && id_raddr2 =/= UInt(0)).asUInt, 
+          id_waddr,  ((id_ctrl.wxd  && id_waddr  =/= UInt(0)).asUInt)))
+    }
+    
+    val id_scoreboard_delayed = Reg(UInt())
+    id_scoreboard_delayed := sboard.r_scoreboard
+      when ((id_scoreboard_delayed =/= sboard.r_scoreboard) && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: sb-[%x]\n",
+          io.hartid, sboard.r_scoreboard))
+    }
+  }
+
+
+
   // stall for RAW/WAW hazards on CSRs, loads, AMOs, and mul/div in execute stage.
   val ex_cannot_bypass = ex_ctrl.csr =/= CSR.N || ex_ctrl.jalr || ex_ctrl.mem || ex_ctrl.mul || ex_ctrl.div || ex_ctrl.fp || ex_ctrl.rocc || ex_scie_pipelined
   val data_hazard_ex = ex_ctrl.wxd && checkHazards(hazard_targets, _ === ex_waddr)
@@ -1288,19 +1307,21 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (io.core_trace.asBool) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: ex-[%x][%x], mem[%x][%x], wb[%x][%x].\n",
-          io.hartid, ex_reg_pc, ex_reg_valid.asUInt, mem_reg_pc, mem_reg_valid.asUInt, wb_reg_pc, wb_reg_valid.asUInt))
+      printf(midas.targetutils.SynthesizePrintf("C%d: if[%x][%x], ex[%x][%x], mem[%x][%x], wb[%x][%x].\n",
+          io.hartid, ibuf.io.pc, ctrl_killd, ex_reg_pc, ex_reg_valid.asUInt, mem_reg_pc, mem_reg_valid.asUInt, wb_reg_pc, wb_reg_valid.asUInt))
     }
 
+  /*
     when (ctrl_killx && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: kx-[%x][%x][%x]\n",
           io.hartid, take_pc_mem_wb.asUInt, replay_ex.asUInt, ex_reg_valid.asUInt))
     }
 
     when (ctrl_killm && io.core_trace.asBool) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: kx-[%x][%x][%x]\n",
+      printf(midas.targetutils.SynthesizePrintf("C%d: km-[%x][%x][%x]\n",
           io.hartid, killm_common.asUInt, mem_xcpt.asUInt, fpu_kill_mem.asUInt))
     }
+  */
   }
   // CoreMonitorBundle for late latency writes
   val xrfWriteBundle = Wire(new CoreMonitorBundle(xLen, fLen))
@@ -1357,6 +1378,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     def clear(en: Bool, addr: UInt): Unit = update(en, _next & ~mask(en, addr))
     def read(addr: UInt): Bool = r(addr)
     def readBypassed(addr: UInt): Bool = _next(addr)
+    val r_scoreboard = Output(UInt(32.W))
 
     private val _r = Reg(init=Bits(0, n))
     private val r = if (zero) (_r >> 1 << 1) else _r
@@ -1368,6 +1390,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
       ens = ens || en
       when (ens) { _r := _next }
     }
+    r_scoreboard := r
   }
 }
 
