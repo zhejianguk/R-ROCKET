@@ -1013,7 +1013,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           id_waddr,  ((id_ctrl.wxd  && id_waddr  =/= UInt(0)).asUInt)))
     }
     
-    val id_scoreboard_delayed = Reg(UInt())
+    val id_scoreboard_delayed = Reg(0.U(32.W))
     id_scoreboard_delayed := sboard.r_scoreboard
       when ((id_scoreboard_delayed =/= sboard.r_scoreboard) && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: sb-[%x]\n",
