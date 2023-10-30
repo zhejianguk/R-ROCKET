@@ -1023,7 +1023,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
 
   if (cfg.divSqrt) {
     val divSqrt_inValid = mem_reg_valid && (mem_ctrl.div || mem_ctrl.sqrt) && !divSqrt_inFlight
-    val divSqrt_killed = RegNext(divSqrt_inValid && killm, true.B) || (RegNext(divSqrt_inValid) || (Mux(io.checker_mode.asBool, io.if_overtaking, false.B)))
+    val divSqrt_killed = RegNext(divSqrt_inValid && killm, true.B) || (RegNext(divSqrt_inValid) && (Mux(io.checker_mode.asBool, io.if_overtaking, false.B)))
     when (divSqrt_inValid) {
       divSqrt_waddr := mem_reg_inst(11,7)
     }
