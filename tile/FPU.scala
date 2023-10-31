@@ -214,7 +214,7 @@ class FPUCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val core_trace = Bool(INPUT)
   val checker_mode = Bool(INPUT)
   val if_overtaking = Bool(INPUT)
-  val if_just_overtaking = Bool(INPUT)
+  val if_overtaking_next_cycle = Bool(INPUT)
   val fpu_inflight = Bool(OUTPUT)
 }
 
@@ -946,9 +946,11 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     when (wen(i+1)) { wbInfo(i) := wbInfo(i+1) }
   }
   wen := wen >> 1
+  val memLatencyMask_1cycle_delay = RegNext(memLatencyMask);
+
   when (mem_wen) {
     when (!killm) {
-      wen := wen >> 1 | Mux(io.if_overtaking, 0.U, memLatencyMask)
+      wen := wen >> 1 | Mux(io.if_overtaking_next_cycle, 0.U, memLatencyMask)
     }
     for (i <- 0 until maxLatency-1) {
       when (!write_port_busy && memLatencyMask(i)) {

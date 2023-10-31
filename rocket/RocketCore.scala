@@ -866,7 +866,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   checker_mode := icsl.io.icsl_checkermode
   io.clear_ic_status := icsl.io.clear_ic_status
   icsl_if_overtaking := (icsl.io.if_overtaking | rsu_slave.io.core_hang_up) & !r_exception_record
-  icsl_just_overtaking := (icsl.io.if_just_overtaking) & !r_exception_record
+  // icsl_just_overtaking := (icsl.io.if_just_overtaking) & !r_exception_record
   icsl_if_ret_special_pc := icsl.io.if_ret_special_pc
   val returned_to_special_address_valid = Wire(Bool())
   icsl.io.returned_to_special_address_valid := returned_to_special_address_valid
@@ -1155,7 +1155,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.checker_mode := checker_mode
   io.fpu.core_trace := io.core_trace.asBool
   io.fpu.if_overtaking := icsl.io.if_overtaking
-  io.fpu.if_just_overtaking := icsl.io.if_just_overtaking
+  io.fpu.if_overtaking_next_cycle := icsl.io.if_overtaking_next_cycle
   icsl.io.something_inflight := !div.io.req.ready || io.fpu.fpu_inflight
 
   // io.fpu.r_if_overtaking := Mux(checker_mode.asBool, icsl_if_overtaking.asBool, false.B)
