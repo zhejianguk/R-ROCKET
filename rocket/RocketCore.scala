@@ -337,6 +337,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val icsl_if_overtaking = Wire(UInt(width=1))
   val icsl_just_overtaking = Wire(UInt(width=1))
   val icsl_if_ret_special_pc = Wire(UInt(width=1))
+  val if_overtaking_next_cycle = Wire(UInt(width=1))
   //===== GuardianCouncil Function: End   ====//
 
   val id_scie_decoder = if (!rocketParams.useSCIE) Wire(new SCIEDecoderInterface) else {
@@ -676,8 +677,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val ctrl_killm = killm_common || mem_xcpt || fpu_kill_mem
 
   // val if_kill_div_r = Mux(checker_mode === 0.U, false.B, Mux(!ctrl_killm && mem_ctrl.div && (icsl_if_overtaking.asBool || icsl_just_overtaking.asBool), true.B, false.B))
-  val if_kill_div_r = Mux(checker_mode === 0.U, false.B, Mux(wb_ctrl.div && icsl_if_overtaking.asBool, true.B, false.B))
-  div.io.kill := ((killm_common || if_kill_div_r) && Reg(next = div.io.req.fire()))
+  val if_kill_div_r =  Mux(checker_mode === 0.U, false.B, Mux(!ctrl_killm && mem_ctrl.div && if_overtaking_next_cycle.asBool, true.B, false.B))
+  div.io.kill := (killm_common && Reg(next = div.io.req.fire())) || if_kill_div_r
 
   // writeback stage
   wb_reg_valid := !ctrl_killm
@@ -832,7 +833,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   rf_wen_rsu := rsu_slave.io.arfs_valid_out
   rsu_pc := rsu_slave.io.pcarf_out
   io.rsu_status := rsu_slave.io.rsu_status
-  rsu_slave.io.do_cp_check := icsl.io.if_rh_cp_pc & rsu_slave.io.rsu_status(1)
+  rsu_slave.io.do_cp_check := icsl.io.if_rh_cp_pc & rsu_slave.io.rsu_status(1) & io.if_correct_process
 
   for (i <-0 until 31){
     rsu_slave.io.core_arfs_in(i) := rf.read(i)
@@ -866,8 +867,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   checker_mode := icsl.io.icsl_checkermode
   io.clear_ic_status := icsl.io.clear_ic_status
   icsl_if_overtaking := (icsl.io.if_overtaking | rsu_slave.io.core_hang_up) & !r_exception_record
-  // icsl_just_overtaking := (icsl.io.if_just_overtaking) & !r_exception_record
   icsl_if_ret_special_pc := icsl.io.if_ret_special_pc
+  if_overtaking_next_cycle := icsl.io.if_overtaking_next_cycle
   val returned_to_special_address_valid = Wire(Bool())
   icsl.io.returned_to_special_address_valid := returned_to_special_address_valid
   icsl.io.if_check_completed := rsu_slave.io.if_cp_check_completed
@@ -1157,27 +1158,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.fpu.if_overtaking := icsl.io.if_overtaking
   io.fpu.if_overtaking_next_cycle := icsl.io.if_overtaking_next_cycle
   icsl.io.something_inflight := !div.io.req.ready || io.fpu.fpu_inflight
-
-  // io.fpu.r_if_overtaking := Mux(checker_mode.asBool, icsl_if_overtaking.asBool, false.B)
-
-  /* R Feature --- LSL */
-  /*
-  io.dmem.req.valid     := ex_reg_valid && ex_ctrl.mem
-  val ex_dcache_tag = Cat(ex_waddr, ex_ctrl.fp)
-  require(coreParams.dcacheReqTagBits >= ex_dcache_tag.getWidth)
-  io.dmem.req.bits.tag  := ex_dcache_tag
-  io.dmem.req.bits.cmd  := ex_ctrl.mem_cmd
-  io.dmem.req.bits.size := ex_reg_mem_size
-  io.dmem.req.bits.signed := !Mux(ex_reg_hls, ex_reg_inst(20), ex_reg_inst(14))
-  io.dmem.req.bits.phys := Bool(false)
-  io.dmem.req.bits.addr := encodeVirtualAddress(ex_rs(0), alu.io.adder_out)
-  io.dmem.req.bits.idx.foreach(_ := io.dmem.req.bits.addr)
-  io.dmem.req.bits.dprv := Mux(ex_reg_hls, csr.io.hstatus.spvp, csr.io.status.dprv)
-  io.dmem.req.bits.dv := ex_reg_hls || csr.io.status.dv
-  io.dmem.s1_data.data := (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2))
-  io.dmem.s1_kill := killm_common || mem_ldst_xcpt || fpu_kill_mem
-  io.dmem.s2_kill := false
-  */
   
   // Simply tied-off the signals sent to D$, when the core is in the checker mode.
   // It might be fine only mask the io.dmem.req.valid, but for safety -- let us amsk all dmem.req signals.

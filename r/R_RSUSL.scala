@@ -165,10 +165,10 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   arf_data                                       := Mux(!io.store_from_checker, arfs_ss.read(arf_addr, apply_snapshot.asBool), arfs_ss_GMode.read(arf_addr, apply_snapshot.asBool))
   farf_data                                      := Mux(!io.store_from_checker, farfs_ss.read(farf_addr, apply_snapshot.asBool), farfs_ss_GMode.read(arf_addr, apply_snapshot.asBool))
 
-  arf_addr_ECP                                   := Mux(io.do_cp_check.asBool, checking_counter, 0.U)
-  farf_addr_ECP                                  := Mux(io.do_cp_check.asBool, checking_counter, 0.U)
-  arf_data_ECP                                   := arfs_ss_ECP.read(arf_addr_ECP, io.do_cp_check.asBool)
-  farf_data_ECP                                  := farfs_ss_ECP.read(farf_addr_ECP,io.do_cp_check.asBool)
+  arf_addr_ECP                                   := Mux(do_check.asBool, checking_counter, 0.U)
+  farf_addr_ECP                                  := Mux(do_check.asBool, checking_counter, 0.U)
+  arf_data_ECP                                   := arfs_ss_ECP.read(arf_addr_ECP,  do_check.asBool)
+  farf_data_ECP                                  := farfs_ss_ECP.read(farf_addr_ECP, do_check.asBool)
 
 
   when ((io.paste_arfs === 0x01.U) && (apply_snapshot === 0.U)) {
@@ -204,7 +204,6 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   io.fcsr_out                                    := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), farf_data, 0.U)
   io.pfarf_valid_out                             := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), 1.U, 0.U)
   io.cdc_ready                                   := packet_valid | packet_valid_ECP
-  io.core_hang_up                                := apply_snapshot | apply_snapshot_memdelay | io.record_context | recording_context
 
   io.rsu_status                                  := rsu_status
 
@@ -227,14 +226,14 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   val checking_counter_memdelay                   = RegInit(0.U(8.W))
   checking_counter_memdelay                      := checking_counter
 
-  do_check                                       := io.do_cp_check
-  if_check_completed                             := Mux(!do_check.asBool, 0.U, Mux(checking_counter_memdelay === 0x19.U, 1.U, if_check_completed))
+  do_check                                       := Mux(io.do_cp_check.asBool, 1.U, Mux(if_check_completed.asBool, 0.U, do_check))
+  if_check_completed                             := Mux(checking_counter_memdelay === 0x19.U, 1.U, 0.U)
   io.if_cp_check_completed                       := if_check_completed
 
-  when (!io.do_cp_check.asBool){
-    checking_counter                             := 0.U
+  when (do_check.asBool){
+    checking_counter                             := Mux(checking_counter === 0x19.U, checking_counter, checking_counter + 1.U)
   } .otherwise {
-    checking_counter                             := Mux(checking_counter === 0x19.U, checking_counter, checking_counter+1.U)
+    checking_counter                             := Mux(io.clear_ic_status.asBool, 0.U, checking_counter)
   }
 
   channel_enq_valid                              := do_check.asBool && !if_check_completed.asBool && ((io.core_arfs_in(checking_counter_memdelay) =/= arf_data_ECP) ||  (io.core_farfs_in(checking_counter_memdelay) =/= farf_data_ECP))
@@ -242,7 +241,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   channel_deq_ready                              := io.elu_cp_deq.asBool
   io.elu_cp_data                                 := channel_deq_data
   io.elu_status                                  := ~channel_empty
-
+  io.core_hang_up                                := apply_snapshot | apply_snapshot_memdelay | io.record_context | recording_context | (do_check.asBool && !if_check_completed.asBool)
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (channel_enq_valid && (io.core_trace.asBool)) {
         val print_farf_data                       = WireInit(0.U((params.xLen).W))

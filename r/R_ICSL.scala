@@ -48,7 +48,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
 
   val sl_counter                                 = RegInit(0.U(params.width_of_ic.W))
   val if_instants_completion                     = Mux((io.if_correct_process.asBool && io.new_commit.asBool && ((sl_counter + 1.U) >= ic_counter_shadow) && ic_counter_done.asBool), 1.U, 0.U)
-  val if_slow_completion                         = (sl_counter >= ic_counter_shadow) && ic_counter_done.asBool
+  val if_slow_completion                         = Mux((io.if_correct_process.asBool && (sl_counter >= ic_counter_shadow) && ic_counter_done.asBool), true.B, false.B)
   val if_just_overtaking                         = Mux((io.if_correct_process.asBool && io.new_commit.asBool && ((sl_counter + 1.U) >= ic_counter_shadow)), 1.U, 0.U)
 
 
