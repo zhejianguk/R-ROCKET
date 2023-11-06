@@ -222,18 +222,19 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   channel_empty                                  := u_channel.io.empty
   channel_full                                   := u_channel.io.full
 
-  val if_check_completed                          = RegInit(0.U(1.W))
   val checking_counter_memdelay                   = RegInit(0.U(8.W))
   checking_counter_memdelay                      := checking_counter
+  val if_check_completed                          = WireInit(0.U(1.W))
 
-  do_check                                       := Mux(io.do_cp_check.asBool, 1.U, Mux(if_check_completed.asBool, 0.U, do_check))
-  if_check_completed                             := Mux(checking_counter_memdelay === 0x19.U, 1.U, 0.U)
+  if_check_completed                             := (checking_counter_memdelay === 0x19.U).asUInt
   io.if_cp_check_completed                       := if_check_completed
 
-  when (do_check.asBool){
-    checking_counter                             := Mux(checking_counter === 0x19.U, checking_counter, checking_counter + 1.U)
-  } .otherwise {
+  when (!do_check.asBool) {
+    do_check                                     := Mux(io.do_cp_check.asBool && !if_check_completed.asBool, 1.U, 0.U)
     checking_counter                             := Mux(io.clear_ic_status.asBool, 0.U, checking_counter)
+  } .otherwise {
+    do_check                                     := Mux(if_check_completed.asBool, 0.U, 1.U)
+    checking_counter                             := Mux(checking_counter === 0x19.U, checking_counter, checking_counter + 1.U)
   }
 
   channel_enq_valid                              := do_check.asBool && !if_check_completed.asBool && ((io.core_arfs_in(checking_counter_memdelay) =/= arf_data_ECP) ||  (io.core_farfs_in(checking_counter_memdelay) =/= farf_data_ECP))
