@@ -950,7 +950,7 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
 
   when (mem_wen) {
     when (!killm) {
-      wen := wen >> 1 | Mux(io.if_overtaking_next_cycle, 0.U, memLatencyMask)
+      wen := wen >> 1 | Mux((io.checker_mode === 1.U) && io.if_overtaking_next_cycle, 0.U, memLatencyMask)
     }
     for (i <- 0 until maxLatency-1) {
       when (!write_port_busy && memLatencyMask(i)) {

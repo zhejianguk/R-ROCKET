@@ -19,7 +19,6 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val icsl_checkermode                           = Output(UInt(1.W))
   val clear_ic_status                            = Output(UInt(1.W))
   val if_overtaking                              = Output(UInt(1.W))
-  // val if_just_overtaking                         = Output(UInt(1.W))
   val if_overtaking_next_cycle                   = Output(UInt(1.W))
   val if_ret_special_pc                          = Output(UInt(1.W))
   val if_rh_cp_pc                                = Output(UInt(1.W))
@@ -28,6 +27,8 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val debug_sl_counter                           = Output(UInt(params.width_of_ic.W))
   val core_trace                                 = Input(UInt(1.W))
   val something_inflight                         = Input(UInt(1.W))
+  val num_valid_insts_in_pipeline                = Input(UInt(4.W))
+  val icsl_stalld                                 = Output(Bool())
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -100,9 +101,11 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
       printf(midas.targetutils.SynthesizePrintf("fsm_state=[%x]\n", fsm_state))
     }
     
+    /*
     when ((ic_counter_shadow_delay =/= ic_counter_shadow) && (io.core_trace.asBool)) {
       printf(midas.targetutils.SynthesizePrintf("ic_counter_ref=[%x]\n", ic_counter_shadow))
     }
+    */
   }
 
   ic_counter_shadow                             := io.ic_counter(params.width_of_ic-2,0) + 1.U // The checker core requires to run one more insts due to the custom jump
@@ -123,4 +126,11 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   io.if_rh_cp_pc                                := if_rh_cp_pc
   io.icsl_status                                := Mux(fsm_state === fsm_nonchecking, 1.U, 0.U)
   io.debug_sl_counter                           := sl_counter
+  val icsl_stalld_fsm_checking                   = Reg(Bool())
+  val icsl_stalld_fsm_postchecking               = Reg(Bool())
+  icsl_stalld_fsm_checking                      := ((sl_counter + io.num_valid_insts_in_pipeline) >= ic_counter_shadow)
+  icsl_stalld_fsm_postchecking                  := (io.num_valid_insts_in_pipeline > 0.U) || (!if_ret_special_pc.asBool)
+  io.icsl_stalld                                := Mux(icsl_checkermode.asBool,
+                                                   Mux(fsm_state === fsm_checking, icsl_stalld_fsm_checking, 
+                                                   Mux(fsm_state === fsm_postchecking, icsl_stalld_fsm_postchecking, false.B)), false.B)
 }

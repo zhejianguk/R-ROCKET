@@ -676,7 +676,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val killm_common = dcache_kill_mem || take_pc_wb || mem_reg_xcpt || !mem_reg_valid
   val ctrl_killm = killm_common || mem_xcpt || fpu_kill_mem
 
-  // val if_kill_div_r = Mux(checker_mode === 0.U, false.B, Mux(!ctrl_killm && mem_ctrl.div && (icsl_if_overtaking.asBool || icsl_just_overtaking.asBool), true.B, false.B))
   val if_kill_div_r =  Mux(checker_mode === 0.U, false.B, Mux(!ctrl_killm && mem_ctrl.div && if_overtaking_next_cycle.asBool, true.B, false.B))
   div.io.kill := (killm_common && Reg(next = div.io.req.fire())) || if_kill_div_r
 
@@ -752,12 +751,14 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val replay_wb = replay_wb_without_overtaken || wb_r_replay
   take_pc_wb := replay_wb || wb_xcpt || csr.io.eret || wb_reg_flush_pipe
 
+  /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (replay_wb && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: re-wb[%x], [%x], [%x], [%x].\n",
           io.hartid, replay_wb_common.asUInt, wb_should_be_valid_but_be_overtaken.asUInt, replay_wb_lsl.asUInt, let_ret_s_commit.asUInt))
     }
-  }
+  } 
+  */
   //===== GuardianCouncil Function: End   ====//
 
   // writeback arbitration
@@ -793,12 +794,14 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   // val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt
   // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
   val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt && !io.rocc.resp.valid
+  /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (wb_reg_valid && !wb_valid && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: bl-wb[%x], [%x].\n",
           io.hartid, replay_wb.asUInt, wb_xcpt.asUInt))
     }
   }
+  */
   
   //===== GuardianCouncil Function: End   ====//
   val wb_wen = wb_valid && wb_ctrl.wxd && !lsl_resp_replay_csr
@@ -874,6 +877,19 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl.io.if_check_completed := rsu_slave.io.if_cp_check_completed
   icsl.io.core_trace := io.core_trace
 
+  val zeros_3bits = Wire(0.U(3.W))
+
+  val icsl_if_valid = Wire(0.U(4.W))
+  val icsl_ex_valid = Wire(0.U(4.W))
+  val icsl_mem_valid = Wire(0.U(4.W))
+  val icsl_wb_valid = Wire(0.U(4.W))
+
+  icsl_if_valid := Cat(zeros_3bits, !ctrl_killd.asUInt)
+  icsl_ex_valid := Cat(zeros_3bits, ex_reg_valid.asUInt)
+  icsl_mem_valid := Cat(zeros_3bits, mem_reg_valid.asUInt)
+  icsl_wb_valid := Cat(zeros_3bits, wb_reg_valid.asUInt)
+  icsl.io.num_valid_insts_in_pipeline := icsl_if_valid + icsl_ex_valid + icsl_mem_valid + icsl_wb_valid
+  
   // Instantiate LSL
   lsl.io.m_st_valid := Mux((io.packet_lsl(138, 136) === 2.U), 1.U, 0.U)
   lsl.io.m_ld_valid := Mux((io.packet_lsl(138, 136) === 1.U), 1.U, 0.U)
@@ -1005,6 +1021,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val id_sboard_hazard = checkHazards(hazard_targets, rd => sboard.read(rd) && !id_sboard_clear_bypass(rd))
   sboard.set(wb_set_sboard && wb_wen, wb_waddr)
 
+  /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (id_sboard_hazard && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: sh-[%x], rs1[%x][%x], rs2[%x][%x], rd[%x][%x]\n",
@@ -1019,6 +1036,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           io.hartid, sboard.r_scoreboard))
     }
   }
+  */
 
 
 
@@ -1079,10 +1097,12 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     csr.io.csr_stall ||
     id_reg_pause ||
     io.traceStall ||
-    !io.clk_enable_gh
+    !io.clk_enable_gh || 
+    icsl.io.icsl_stalld
     // ((io.s_or_r === 1.U) && (checker_mode === 1.U) && (lsl_req_ready === 0.U)) // hang the pipeline, when the lsl is not reqdy
   ctrl_killd := !ibuf.io.inst(0).valid || ibuf.io.inst(0).bits.replay || take_pc_mem_wb || ctrl_stalld || csr.io.interrupt
 
+  /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (ctrl_killd && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: kd [%x], [%x], [%x], [%x], [%x].\n",
@@ -1093,6 +1113,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           io.hartid, rsu_slave.io.core_hang_up.asUInt, id_ex_hazard.asUInt, id_mem_hazard.asUInt, id_wb_hazard.asUInt, id_sboard_hazard.asUInt, (csr.io.singleStep && (ex_reg_valid || mem_reg_valid || wb_reg_valid)).asUInt, csr.io.csr_stall.asUInt))
     }
   }
+  */
 
   returned_to_special_address_valid := (wb_valid || io.rocc.resp.valid) && (wb_reg_pc === pc_special)
 
@@ -1283,13 +1304,13 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     */
   }
 
+/*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: if[%x][%x], ex[%x][%x], mem[%x][%x], wb[%x][%x].\n",
           io.hartid, ibuf.io.pc, ctrl_killd, ex_reg_pc, ex_reg_valid.asUInt, mem_reg_pc, mem_reg_valid.asUInt, wb_reg_pc, wb_reg_valid.asUInt))
     }
 
-  /*
     when (ctrl_killx && io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("C%d: kx-[%x][%x][%x]\n",
           io.hartid, take_pc_mem_wb.asUInt, replay_ex.asUInt, ex_reg_valid.asUInt))
@@ -1299,8 +1320,9 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
       printf(midas.targetutils.SynthesizePrintf("C%d: km-[%x][%x][%x]\n",
           io.hartid, killm_common.asUInt, mem_xcpt.asUInt, fpu_kill_mem.asUInt))
     }
-  */
   }
+*/
+
   // CoreMonitorBundle for late latency writes
   val xrfWriteBundle = Wire(new CoreMonitorBundle(xLen, fLen))
 
