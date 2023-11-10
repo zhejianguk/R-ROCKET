@@ -87,11 +87,13 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   val if_t_and_a                                = Mux(((io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool) && (!ic_status(sch_result).asBool)), 1.U, 0.U)
   fsm_ini                                      := Mux(fsm_state === fsm_reset, 1.U, Mux(fsm_state === fsm_presch, fsm_ini, 0.U))
   val ic_exit_isax_buffer                       = RegInit(0.U(1.W))
+  val end                                       = RegInit(0.U(1.W))
   ic_exit_isax_buffer                          := Mux(fsm_state === fsm_reset, 0.U, Mux(io.ic_exit_isax.asBool && fsm_state =/= fsm_check, 1.U, ic_exit_isax_buffer))
 
 
   switch (fsm_state) {
     is (fsm_reset){ // 000
+      end                                       := 0.U
       ctrl                                      := 2.U
       crnt_target                               := 0.U
       crnt_mask                                 := 0.U
@@ -107,6 +109,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
     }
 
     is (fsm_presch){ // 001
+      end                                       := end
       ctrl                                      := 2.U
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
@@ -122,6 +125,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
     }
 
     is (fsm_sch){ // 010
+      end                                       := end
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
@@ -137,6 +141,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
     }
 
     is (fsm_cooling){ // 011
+      end                                       := end
       ctrl                                      := ctrl
       crnt_target                               := Mux(if_cooled, nxt_target, crnt_target)
       crnt_mask                                 := crnt_mask
@@ -152,6 +157,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
     }
 
     is (fsm_snap){ // 100
+      end                                       := end
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
       crnt_mask                                 := Cat(ctrl, crnt_target)
@@ -167,7 +173,8 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
     }
 
     is (fsm_trans){ // 101 Do we really need a signal to transmit the snapshot? 
-      ctrl                                      := Mux(ic_exit_isax_buffer.asBool, 3.U, ctrl)
+      end                                       := Mux(!end.asBool && (ic_exit_isax_buffer.asBool || io.ic_exit_isax.asBool), Mux(!io.rsu_busy.asBool, 1.U, end), end)
+      ctrl                                      := Mux(!end.asBool && (ic_exit_isax_buffer.asBool || io.ic_exit_isax.asBool), Mux(!io.rsu_busy.asBool, 3.U, ctrl), ctrl)
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
       nxt_target                                := nxt_target
@@ -178,13 +185,14 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
       }
-      fsm_state                                 := Mux(ic_exit_isax_buffer.asBool, Mux(!io.rsu_busy.asBool, fsm_postcheck, fsm_trans), 
-                                                   Mux(ctrl === 3.U, 
-                                                   Mux(!io.rsu_busy.asBool, fsm_reset, fsm_trans), 
-                                                   Mux(ctrl === 1.U, fsm_presch, fsm_check)))
+      fsm_state                                 := Mux(end.asBool, Mux(!io.rsu_busy.asBool, fsm_reset, fsm_trans),
+                                                   Mux(ic_exit_isax_buffer.asBool || io.ic_exit_isax.asBool, Mux(!io.rsu_busy.asBool, fsm_postcheck, fsm_trans),
+                                                   Mux(ctrl === 3.U, Mux(!io.rsu_busy.asBool, fsm_reset, fsm_trans), 
+                                                   Mux(ctrl === 1.U, fsm_presch, fsm_check))))
     }
 
     is (fsm_check){ // 110
+      end                                       := end
       ctrl                                      := Mux(io.ic_exit_isax.asBool, 3.U, Mux(io.ic_syscall.asBool || if_t_and_na.asBool, 1.U, Mux(if_t_and_a.asBool, 0.U, ctrl)))
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
@@ -200,6 +208,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
     }
 
     is (fsm_postcheck){ // 111
+      end                                       := end
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
       crnt_mask                                 := crnt_mask
