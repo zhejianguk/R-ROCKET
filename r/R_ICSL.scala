@@ -37,8 +37,8 @@ trait HasR_ICSLIO extends BaseModule {
 }
 
 class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
-  val ic_counter_shadow                          = WireInit(0.U((params.width_of_ic-1).W))
-  val ic_counter_done                            = WireInit(0.U(1.W))
+  val ic_counter_shadow                          = RegInit(0.U((params.width_of_ic-1).W))
+  val ic_counter_done                            = RegInit(0.U(1.W))
   val icsl_run                                   = WireInit(0.U(1.W))
   
   val icsl_checkermode                           = WireInit(0.U(1.W))

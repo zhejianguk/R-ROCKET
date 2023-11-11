@@ -1274,16 +1274,12 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (csr.io.trace(0).valid && io.core_trace.asBool) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] sl_counter=[%x], rf_sl_counter=[%x]\n",
+      printf(midas.targetutils.SynthesizePrintf("C%d: [%d]pc=[%x]W[r%d=%x][%d];slc=[%x]rf_slc=[%x]\n",
           io.hartid, coreMonitorBundle.valid,
           coreMonitorBundle.pc,
           Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
           Mux(coreMonitorBundle.wrenx, coreMonitorBundle.wrdata, 0.U),
           coreMonitorBundle.wrenx,
-          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0src, 0.U),
-          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0val, 0.U),
-          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1src, 0.U),
-          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
           coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U), io.ic_counter))
     }
   } else {
