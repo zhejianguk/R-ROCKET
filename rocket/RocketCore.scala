@@ -1280,7 +1280,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
           Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
           Mux(coreMonitorBundle.wrenx, coreMonitorBundle.wrdata, 0.U),
           coreMonitorBundle.wrenx,
-          coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U), io.ic_counter))
+          (icsl.io.debug_sl_counter + 1.U), io.ic_counter))
     }
   } else {
     /*
