@@ -31,6 +31,7 @@ class R_RSUIO(params: R_RSUParams) extends Bundle {
   val arfs_pidx = Output(Vec(params.scalarWidth, UInt(8.W)))
   val rsu_busy = Output(UInt(1.W))
   val core_trace =Input(UInt(1.W))
+  val ic_trace = Input(UInt((1.W)))
 }
 
 trait HasR_RSUIO extends BaseModule {
@@ -107,6 +108,12 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   
   io.rsu_merging                                   := merging
   io.rsu_busy                                      := Mux(io.snapshot.asBool || io.merge.asBool || io_merge_delay1.asBool || io_merge_delay2.asBool || doSnapshot.asBool || doMerge.asBool || merging.asBool, 1.U, 0.U)
+
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when ((io.ic_trace.asBool) && (doSnapshot === 1.U)) {
+      printf(midas.targetutils.SynthesizePrintf("[CP-Main]: [PC =%x]\n", io.pcarf_in))
+    }
+  }
 
   /*
   if (GH_GlobalParams.GH_DEBUG == 1) {

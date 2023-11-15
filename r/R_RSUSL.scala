@@ -200,6 +200,15 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   io.arfs_idx_out                                := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay =/= 0x20.U)), apply_counter_memdelay, 0.U)
   io.arfs_valid_out                              := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay =/= 0x20.U)), 1.U, 0.U)
 
+  val pcarfs_ss_delay                             = RegInit(0.U(40.W))
+  pcarfs_ss_delay                                := pcarfs_ss
+
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when ((arfs_out_valid_printf.asBool) && (pcarfs_ss_delay =/= pcarfs_ss)) {
+      printf(midas.targetutils.SynthesizePrintf("[CP-T-PC] = [%x]\n", pcarfs_ss))
+    }
+  }
+ 
   io.pcarf_out                                   := pcarfs_ss
   io.fcsr_out                                    := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), farf_data, 0.U)
   io.pfarf_valid_out                             := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), 1.U, 0.U)
