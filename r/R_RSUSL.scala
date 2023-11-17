@@ -204,7 +204,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   pcarfs_ss_delay                                := pcarfs_ss
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
-    when ((arfs_out_valid_printf.asBool) && (pcarfs_ss_delay =/= pcarfs_ss)) {
+    when ((io.core_trace.asBool) && (pcarfs_ss_delay =/= pcarfs_ss)) {
       printf(midas.targetutils.SynthesizePrintf("[CP-T-PC] = [%x]\n", pcarfs_ss))
     }
   }
