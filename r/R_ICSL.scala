@@ -28,7 +28,8 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val core_trace                                 = Input(UInt(1.W))
   val something_inflight                         = Input(UInt(1.W))
   val num_valid_insts_in_pipeline                = Input(UInt(4.W))
-  val icsl_stalld                                 = Output(Bool())
+  val icsl_stalld                                = Output(Bool())
+  val core_id                                    = Input(UInt(4.W))
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -98,7 +99,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
     fsm_state_delay                             := fsm_state
     ic_counter_shadow_delay                     := ic_counter_shadow
     when ((fsm_state_delay =/= fsm_state) && (io.core_trace.asBool)) {
-      printf(midas.targetutils.SynthesizePrintf("fsm_state=[%x]\n", fsm_state))
+      printf(midas.targetutils.SynthesizePrintf("C%d: fsm_state=[%x]\n", io.core_id, fsm_state))
     }
     
     /*

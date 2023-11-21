@@ -42,6 +42,7 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val core_trace = Input(UInt(1.W))
   val record_context = Input(UInt(1.W))
   val store_from_checker = Input(UInt(1.W)) // 0: from main; 1: from checker.
+  val core_id = Input(UInt(4.W)) // 0: from main; 1: from checker.
 }
 
 trait HasR_RSUSLIO extends BaseModule {
@@ -205,8 +206,13 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when ((io.core_trace.asBool) && (pcarfs_ss_delay =/= pcarfs_ss)) {
-      printf(midas.targetutils.SynthesizePrintf("[CP-T-PC] = [%x]\n", pcarfs_ss))
+      printf(midas.targetutils.SynthesizePrintf("[C%x-CPS] = [%x]\n", io.core_id, pcarfs_ss))
     }
+  
+    when ((io.core_trace.asBool) && (packet_valid_ECP.asBool) && (packet_index_ECP === 0x20.U)) {
+      printf(midas.targetutils.SynthesizePrintf("[C%x-CPE] = [%x]\n", io.core_id, packet_arfs_ECP))
+    }
+
   }
  
   io.pcarf_out                                   := pcarfs_ss

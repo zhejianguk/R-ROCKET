@@ -857,7 +857,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   rsu_slave.io.clear_ic_status := icsl.io.clear_ic_status
   rsu_slave.io.record_context := io.record_and_store(1)
   rsu_slave.io.store_from_checker := io.record_and_store(0)
-
+  rsu_slave.io.core_id := io.hartid
+  icsl.io.core_id := io.hartid
   // Instantiate ICSL
   val r_exception_record = RegInit(0.U(1.W))
   r_exception_record := Mux(csr.io.r_exception.asBool, 1.U, Mux(csr.io.trace(0).valid && !csr.io.trace(0).exception && r_exception_record.asBool, 0.U, r_exception_record))

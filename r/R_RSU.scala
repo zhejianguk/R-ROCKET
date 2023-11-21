@@ -110,7 +110,7 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   io.rsu_busy                                      := Mux(io.snapshot.asBool || io.merge.asBool || io_merge_delay1.asBool || io_merge_delay2.asBool || doSnapshot.asBool || doMerge.asBool || merging.asBool, 1.U, 0.U)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
-    when ((io.ic_trace.asBool) && (doSnapshot === 1.U)) {
+    when ((io.core_trace.asBool) && (doSnapshot === 1.U)) {
       printf(midas.targetutils.SynthesizePrintf("[CP-Main]: [PC =%x]\n", io.pcarf_in))
     }
   }
