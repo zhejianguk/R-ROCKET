@@ -77,7 +77,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   val fsm_state                                 = RegInit(fsm_reset)
   val fsm_ini                                   = RegInit(0.U(1.W))
   val cooling_counter                           = RegInit(0.U(4.W))
-  val exception                                 = RegInit(0.U(1.W))
   val cooling_threshold                         = 5.U
   cooling_counter                              := Mux((fsm_state =/= fsm_cooling), 0.U, Mux(cooling_counter < cooling_threshold, cooling_counter + 1.U, cooling_counter))
   val if_cooled                                 = Mux((cooling_counter >= cooling_threshold) && !io.rsu_busy.asBool, true.B, false.B)
@@ -101,7 +100,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       nxt_target                                := 0.U
       if_filtering                              := 0.U
       if_pipeline_stall                         := 0.U
-      exception                                 := 0.U
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
@@ -116,13 +114,12 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       crnt_mask                                 := crnt_mask
       nxt_target                                := nxt_target
       if_filtering                              := 0.U
-      if_pipeline_stall                         := Mux(fsm_ini.asBool, 0.U, Mux((exception.asBool || (!io.if_correct_process.asBool)), 0.U, 1.U))
-      exception                                 := Mux(exception.asBool && io.ic_syscall_back.asBool, 0.U, exception)
+      if_pipeline_stall                         := Mux(fsm_ini.asBool, 0.U, io.if_correct_process.asBool)
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
       }
-      fsm_state                                 := Mux(fsm_ini.asBool, Mux(io.ic_run_isax.asBool, fsm_sch, fsm_presch), Mux(exception.asBool && !io.ic_syscall_back.asBool, fsm_presch, fsm_sch))
+      fsm_state                                 := Mux(fsm_ini.asBool, Mux(io.ic_run_isax.asBool, fsm_sch, fsm_presch), fsm_sch)
     }
 
     is (fsm_sch){ // 010
@@ -132,8 +129,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       crnt_mask                                 := crnt_mask
       nxt_target                                := Mux(!ic_status(sch_result).asBool && io.if_correct_process.asBool, sch_result, nxt_target)
       if_filtering                              := 0.U
-      if_pipeline_stall                         := Mux(io.if_correct_process.asBool, 1.U, 0.U)
-      exception                                 := exception
+      if_pipeline_stall                         := io.if_correct_process.asBool
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
@@ -149,7 +145,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       nxt_target                                := nxt_target
       if_filtering                              := 0.U
       if_pipeline_stall                         := io.if_correct_process.asBool
-      exception                                 := exception
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
@@ -165,7 +160,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       nxt_target                                := nxt_target
       if_filtering                              := 0.U
       if_pipeline_stall                         := io.if_correct_process.asBool
-      exception                                 := exception
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, Mux((crnt_target === i.U) && (ctrl(0) === 0.U), 1.U, ic_status(i)))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
@@ -182,7 +176,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       nxt_target                                := nxt_target
       if_filtering                              := 0.U
       if_pipeline_stall                         := io.if_correct_process.asBool
-      exception                                 := exception
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U, ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U, ic_counter(i))
@@ -201,7 +194,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       nxt_target                                := nxt_target 
       if_filtering                              := Mux(io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool, 0.U, 1.U)
       if_pipeline_stall                         := Mux(io.ic_exit_isax.asBool || io.ic_syscall.asBool || (ic_counter(crnt_target) >= io.ic_threshold) || io.icsl_na(crnt_target).asBool, 1.U, 0.U)
-      exception                                 := Mux(io.ic_syscall.asBool, 1.U, exception)
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U,  ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U,  Mux((crnt_target === i.U) && (io.if_correct_process.asBool) && (!io.ic_syscall.asBool), (ic_counter(i) + io.ic_incr), ic_counter(i)))
@@ -217,7 +209,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       nxt_target                                := nxt_target 
       if_filtering                              := 0.U
       if_pipeline_stall                         := 1.U
-      exception                                 := exception
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U,  ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U,  Mux((crnt_target === i.U), (ic_counter(i) | 0x8000.U), ic_counter(i)))

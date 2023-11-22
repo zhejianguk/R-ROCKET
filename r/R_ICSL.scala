@@ -77,7 +77,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
     is (fsm_checking){
       sl_counter                                := Mux(io.if_correct_process.asBool && io.new_commit.asBool, sl_counter + 1.U, sl_counter)
       clear_ic_status                           := 0.U
-      icsl_checkermode                          := 1.U
+      icsl_checkermode                          := Mux(io.if_correct_process.asBool, 1.U, 0.U)
       if_rh_cp_pc                               := 0.U
       fsm_state                                 := Mux((if_instants_completion.asBool || if_slow_completion.asBool) && (!io.something_inflight), fsm_postchecking, fsm_checking)
     }
@@ -86,7 +86,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
     is (fsm_postchecking){
       sl_counter                                := sl_counter
       clear_ic_status                           := 0.U
-      icsl_checkermode                          := 1.U
+      icsl_checkermode                          := Mux(io.if_correct_process.asBool, 1.U, 0.U)
       if_rh_cp_pc                               := 1.U
       fsm_state                                 := Mux(io.returned_to_special_address_valid.asBool, fsm_reset, fsm_postchecking)
     }
@@ -99,7 +99,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
     fsm_state_delay                             := fsm_state
     ic_counter_shadow_delay                     := ic_counter_shadow
     when ((fsm_state_delay =/= fsm_state) && (io.core_trace.asBool)) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: fsm_state=[%x]\n", io.core_id, fsm_state))
+      printf(midas.targetutils.SynthesizePrintf("C%d:fsm_state=[%x]\n", io.core_id, fsm_state))
     }
     
     /*
@@ -120,7 +120,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   
   icsl_run                                      := io.icsl_run
   io.clear_ic_status                            := clear_ic_status
-  io.icsl_checkermode                           := icsl_checkermode & io.if_correct_process
+  io.icsl_checkermode                           := icsl_checkermode
   io.if_overtaking                              := (icsl_checkermode & if_overtaking)
   io.if_overtaking_next_cycle                   := (icsl_checkermode & if_overtaking_next_cycle)
   io.if_ret_special_pc                          := if_ret_special_pc
