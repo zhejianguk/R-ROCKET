@@ -208,7 +208,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       crnt_mask                                 := crnt_mask
       nxt_target                                := nxt_target 
       if_filtering                              := 0.U
-      if_pipeline_stall                         := 1.U
+      if_pipeline_stall                         := io.if_correct_process.asBool
       for (i <- 0 to params.totalnumber_of_cores - 1) {
         ic_status(i)                            := Mux(clear_ic_status(i).asBool, 0.U,  ic_status(i))
         ic_counter(i)                           := Mux(clear_ic_status(i).asBool, 0.U,  Mux((crnt_target === i.U), (ic_counter(i) | 0x8000.U), ic_counter(i)))
@@ -253,7 +253,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
 
   io.crnt_target                                := crnt_mask
   io.if_filtering                               := if_filtering & io.if_correct_process // Not used yet
-  io.if_pipeline_stall                          := if_pipeline_stall
+  io.if_pipeline_stall                          := if_pipeline_stall & io.if_correct_process
   io.if_dosnap                                  := if_dosnap
 
   io.ic_counter                                 := ic_counter
