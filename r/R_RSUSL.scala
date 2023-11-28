@@ -55,6 +55,22 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   val rsu_status                                  = RegInit(0.U(2.W))
 
   /* Loading snapshot from RSU Master */
+  val fsm_reset :: fsm_receiving :: fsm_waiting :: Nil = Enum(3)
+  val fsm_state                                 = RegInit(fsm_reset)
+  switch (fsm_state) {
+    is (fsm_reset){
+      fsm_state                                  := Mux(io.arfs_if_ARFS.asBool, fsm_receiving, fsm_reset)
+    }
+
+    is (fsm_receiving){
+      fsm_state                                  := fsm_waiting
+    }
+
+    is (fsm_waiting){
+      fsm_state                                  := Mux(!io.arfs_if_ARFS.asBool, fsm_reset, fsm_waiting)
+    }
+  }
+
   val arfs_ss                                     = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
   val farfs_ss                                    = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
   val arfs_ss_ECP                                 = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
@@ -111,7 +127,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   packet_farfs_ECP                               := Mux(if_RSU_packet_ECP === 1.U, io.arfs_merge(127,64), 0.U)
   packet_index_ECP                               := Mux(if_RSU_packet_ECP === 1.U, io.arfs_index, 0.U)
 
-  when (packet_valid === 1.U) {
+  when (packet_valid.asBool && (fsm_state === fsm_receiving)) {
     arfs_ss.write(packet_index, packet_arfs)
     farfs_ss.write(packet_index, packet_farfs)
     /*
@@ -124,7 +140,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
     */
   } 
   
-  when (packet_valid_ECP === 1.U) {
+  when (packet_valid_ECP.asBool && (fsm_state === fsm_receiving)) {
     arfs_ss_ECP.write(packet_index_ECP, packet_arfs_ECP)
     farfs_ss_ECP.write(packet_index_ECP, packet_farfs_ECP)
     /*
@@ -218,7 +234,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   io.pcarf_out                                   := pcarfs_ss
   io.fcsr_out                                    := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), farf_data, 0.U)
   io.pfarf_valid_out                             := Mux(((apply_snapshot_memdelay === 1.U) && (apply_counter_memdelay === 0x20.U)), 1.U, 0.U)
-  io.cdc_ready                                   := packet_valid | packet_valid_ECP
+  io.cdc_ready                                   := (fsm_state =/= fsm_reset)
 
   io.rsu_status                                  := rsu_status
 

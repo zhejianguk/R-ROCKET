@@ -121,7 +121,7 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
       }
 
       is (fsm_sending){
-        cdc_data                                := Mux((io.cdc_pull === 1.U), 0.U, cdc_channel_deq_data)
+        cdc_data                                := cdc_channel_deq_data
         fsm_state                               := Mux((io.cdc_pull === 1.U), fsm_waiting, fsm_sending)
         cdc_channel_deq_ready                   := Mux((io.cdc_pull === 1.U), 1.U, 0.U)
       }

@@ -68,13 +68,30 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   channel_full               := u_channel.io.full
   channel_nearfull           := u_channel.io.status_threeslots
 
+  val fsm_reset :: fsm_receiving :: fsm_waiting :: Nil = Enum(3)
+  val fsm_state                                = RegInit(fsm_reset)
+  switch (fsm_state) {
+    is (fsm_reset){
+      fsm_state                               := Mux((io.m_st_valid === 1.U) || (io.m_ld_valid === 1.U) || (io.m_csr_valid === 1.U), fsm_receiving, fsm_reset)
+    }
+
+    is (fsm_receiving){
+      fsm_state                               := fsm_waiting
+    }
+
+    is (fsm_waiting){
+      fsm_state                               := Mux((io.m_st_valid === 0.U) && (io.m_ld_valid === 0.U) && (io.m_csr_valid === 0.U), fsm_reset, fsm_waiting)
+    }
+  }
+
+
   val enq_valid               = RegInit(false.B)
   val enq_data                = RegInit(0.U(fifowidth.W))
 
   enq_valid                  := (io.m_st_valid === 1.U) || (io.m_ld_valid === 1.U)
   enq_data                   := Cat(io.m_st_valid, io.m_ld_valid, io.m_ldst_data, io.m_ldst_addr)
-  channel_enq_valid          := Mux(enq_valid, 1.U, 0.U)
-  channel_enq_data           := Mux(enq_valid, enq_data, 0.U)
+  channel_enq_valid          := Mux(enq_valid && (fsm_state === fsm_receiving), 1.U, 0.U)
+  channel_enq_data           := Mux(enq_valid && (fsm_state === fsm_receiving), enq_data, 0.U)
 
   val req_valid_reg           = RegInit(0.U(1.W))
   val resp_valid_reg          = RegInit(0.U(1.W))
@@ -121,14 +138,13 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   csr_channel_empty          := u_channel_csr.io.empty
   csr_channel_nearfull       := u_channel_csr.io.status_threeslots
 
-
-  csr_channel_enq_valid      := csr_enq_valid
-  csr_channel_enq_data       := csr_enq_data
+  csr_channel_enq_valid      := Mux(csr_enq_valid && (fsm_state === fsm_receiving), true.B, false.B)
+  csr_channel_enq_data       := Mux(csr_enq_valid && (fsm_state === fsm_receiving), csr_enq_data, 0.U)
   csr_channel_deq_ready      := (io.req_valid_csr === 1.U) && !csr_channel_empty
   io.resp_data_csr           := csr_channel_deq_data
   // io.resp_replay_csr         := (io.req_valid_csr === 1.U) && csr_channel_empty
 
-  io.cdc_ready               := enq_valid || csr_enq_valid
+  io.cdc_ready               := (fsm_state =/= fsm_reset)
   io.near_full               := u_channel.io.status_fiveslots | csr_channel_nearfull
   io.req_ready_csr           := !csr_channel_empty
   io.if_empty                := csr_channel_empty & channel_empty
