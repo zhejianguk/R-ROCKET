@@ -77,7 +77,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   val fsm_state                                 = RegInit(fsm_reset)
   val fsm_ini                                   = RegInit(0.U(1.W))
   val cooling_counter                           = RegInit(0.U(4.W))
-  val cooling_threshold                         = 3.U
+  val cooling_threshold                         = 2.U
   cooling_counter                              := Mux((fsm_state =/= fsm_cooling), 0.U, Mux(cooling_counter < cooling_threshold, cooling_counter + 1.U, cooling_counter))
   val if_cooled                                 = Mux((cooling_counter >= cooling_threshold) && !io.rsu_busy.asBool, true.B, false.B)
   sch_reset                                    := Mux((fsm_state === fsm_reset) || (io.changing_num_of_checker.asBool), 1.U, 0.U)
@@ -156,7 +156,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
       end                                       := end
       ctrl                                      := ctrl
       crnt_target                               := crnt_target
-      crnt_mask                                 := Mux(io.if_ready_snap_shot.asBool && io.if_correct_process.asBool, Cat(ctrl, crnt_target), crnt_mask)
+      crnt_mask                                 := Mux((ctrl === 2.U) || (ctrl === 0.U), Mux(io.if_ready_snap_shot.asBool && io.if_correct_process.asBool, Cat(ctrl, crnt_target), crnt_mask), Mux(io.if_ready_snap_shot.asBool, Cat(ctrl, crnt_target), crnt_mask))      
       nxt_target                                := nxt_target
       if_filtering                              := 0.U
       if_pipeline_stall                         := io.if_correct_process.asBool
