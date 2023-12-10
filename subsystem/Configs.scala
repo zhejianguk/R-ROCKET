@@ -167,10 +167,10 @@ class WithNGCCheckers(n: Int, overrideIdOffset: Option[Int] = None) extends Conf
         blockBytes = site(CacheBlockBytes))),
       icache = Some(ICacheParams(
         rowBits = site(SystemBusKey).beatBits,
-        nSets = 32,
-        nWays = 2,
+        nSets = 64,
+        nWays = 8,
         nTLBSets = 1,
-        nTLBWays = 4,
+        nTLBWays = 32,
         blockBytes = site(CacheBlockBytes))))
     List.tabulate(n)(i => checker.copy(hartId = i + idOffset)) ++ prev
   }
