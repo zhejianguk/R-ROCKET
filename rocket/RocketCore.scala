@@ -890,7 +890,10 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl_mem_valid := Cat(zeros_3bits, mem_reg_valid.asUInt)
   icsl_wb_valid := Cat(zeros_3bits, wb_reg_valid.asUInt)
   icsl.io.num_valid_insts_in_pipeline := icsl_if_valid + icsl_ex_valid + icsl_mem_valid + icsl_wb_valid
-  
+  icsl.io.debug_perf_reset := io.debug_perf_ctrl(0)
+  icsl.io.debug_perf_sel := io.debug_perf_ctrl(3,1)
+  io.debug_perf_val := icsl.io.debug_perf_val
+
   // Instantiate LSL
   lsl.io.m_st_valid := Mux((io.packet_lsl(138, 136) === 2.U), 1.U, 0.U)
   lsl.io.m_ld_valid := Mux((io.packet_lsl(138, 136) === 1.U), 1.U, 0.U)
@@ -1212,6 +1215,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_req_data              := Mux(checker_mode === 1.U, (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2)), 0.U)
   lsl_req_kill              := Mux(checker_mode === 1.U, (killm_common || mem_ldst_xcpt || fpu_kill_mem), 0.U)
   io.icsl_status            := Mux((icsl.io.icsl_status === 1.U) && (rsu_slave.io.rsu_status === 0.U) && (lsl.io.if_empty === 1.U), 1.U, 0.U)
+  
 
   // don't let D$ go to sleep if we're probably going to use it soon
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall

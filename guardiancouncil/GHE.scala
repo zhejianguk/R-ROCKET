@@ -125,6 +125,8 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val doStoreFromChecker      = (cmd.fire && (funct === 0x72.U))
     val doStoreFromMain         = (cmd.fire && (funct === 0x73.U))
     val doRecord                = (cmd.fire && (funct === 0x75.U))
+    val doPerfCtrl              = (cmd.fire && (funct === 0x76.U))
+    val doPerfRead              = (cmd.fire && (funct === 0x77.U))
 
     val ghe_packet_in           = RegInit(0x0.U(gh_packet_width.W))
     ghe_packet_in              := io.ghe_packet_in
@@ -213,6 +215,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
                                           doReadELU_S4        -> io.elu_data_in(263,208),
                                           doCheckELU          -> io.elu_status_in(elu_sel),
                                           doFIRead            -> io.fi_latency,
+                                          doPerfRead          -> io.debug_perf_val_in
                                           )
                                           )
                                           
@@ -354,4 +357,10 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
       store_from_checker       := 0.U
     }
     io.record_and_store_out    := Cat(doRecord, store_from_checker)
+
+    val debug_perf_ctrl         = RegInit(1.U(4.W))
+    when (doPerfCtrl) {
+      debug_perf_ctrl          := rs1_val(3,0)
+    }
+    io.debug_perf_ctrl         := debug_perf_ctrl
 }
