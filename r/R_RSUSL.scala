@@ -222,11 +222,14 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   io.rsu_status                                  := rsu_status
 
-  val u_channel                                   = Module (new GH_MemFIFO(FIFOParams((4*params.xLen+8), 4)))
+  // val width_of_error_code                         = 4*params.xLen+8
+  // This is wrong, which is just for reducing the size of the design
+  val width_of_error_code                         = 4
+  val u_channel                                   = Module (new GH_MemFIFO(FIFOParams((width_of_error_code), 1)))
   val channel_enq_valid                           = WireInit(false.B)
-  val channel_enq_data                            = WireInit(0.U((4*params.xLen+8).W))
+  val channel_enq_data                            = WireInit(0.U((width_of_error_code).W))
   val channel_deq_ready                           = WireInit(false.B)
-  val channel_deq_data                            = WireInit(0.U((4*params.xLen+8).W))
+  val channel_deq_data                            = WireInit(0.U((width_of_error_code).W))
   val channel_empty                               = WireInit(true.B)
   val channel_full                                = WireInit(false.B)
 

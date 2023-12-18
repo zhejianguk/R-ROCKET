@@ -101,7 +101,7 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   io.resp_has_data           := Mux((resp_valid_reg === 1.U) && (cmd(0) === 1.U), 1.U, 0.U)
   io.resp_replay             := req_valid_reg & !resp_valid_reg & !resp_kill_reg
 
-  val u_channel_csr           = Module (new GH_FIFO(FIFOParams(params.xLen, 9))) // These are rarely used
+  val u_channel_csr           = Module (new GH_FIFO(FIFOParams(params.xLen, 8))) // These are rarely used
   val csr_channel_enq_valid   = WireInit(false.B)
   val csr_channel_enq_data    = WireInit(0.U(params.xLen.W))
   val csr_channel_deq_ready   = WireInit(false.B)
