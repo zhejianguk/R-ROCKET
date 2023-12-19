@@ -179,7 +179,7 @@ trait HasCoreIO extends HasTileParameters {
     val lsl_near_full = UInt(1.W).asOutput
     val ght_prv = UInt(2.W).asOutput
     val if_correct_process = UInt(1.W).asInput
-    val elu_data = UInt(264.W).asOutput
+    val elu_data = UInt(GH_GlobalParams.GH_WIDITH_PERF.W).asOutput
     val elu_deq = UInt(1.W).asInput
     val elu_sel = UInt(1.W).asInput
     val elu_status = UInt(2.W).asOutput

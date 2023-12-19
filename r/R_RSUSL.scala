@@ -222,7 +222,6 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   io.rsu_status                                  := rsu_status
 
-  // val width_of_error_code                         = 
   // This is wrong, which is just for reducing the size of the design
   /*
   val width_of_error_code                         = 4*params.xLen+8
