@@ -89,7 +89,6 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val rsu_status_in = Input(UInt(2.W))
   val s_or_r_out = Output(UInt(2.W))
   val elu_data_in = Input(UInt(264.W))
-  val debug_perf_val_in = Input(UInt(64.W))
   val elu_deq_out = Output(UInt(1.W))
   val elu_sel_out = Output(UInt(1.W))
   val record_pc_out = Output(UInt(1.W))
@@ -182,7 +181,6 @@ trait HasLazyRoCCModule extends CanHavePTWModule
       rocc.module.io.ght_satp_ppn := cmdRouter.io.ght_satp_ppn
       rocc.module.io.ght_sys_mode := cmdRouter.io.ght_sys_mode
       rocc.module.io.elu_data_in := cmdRouter.io.elu_data_in
-      rocc.module.io.debug_perf_val_in := cmdRouter.io.debug_perf_val_in
       cmdRouter.io.elu_deq_in := rocc.module.io.elu_deq_out
       cmdRouter.io.elu_sel_in := rocc.module.io.elu_sel_out
       rocc.module.io.elu_status_in := cmdRouter.io.elu_status_in
@@ -559,7 +557,6 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val ght_satp_ppn  = Input(UInt(44.W))
     val ght_sys_mode  = Input(UInt(2.W))
     val elu_data_in = Input(UInt(264.W))
-    val debug_perf_val_in = Input(UInt(64.W))
     val elu_deq_out = Output(UInt(1.W))
     val elu_deq_in = Input(UInt(1.W))
     val elu_sel_out = Output(UInt(1.W))

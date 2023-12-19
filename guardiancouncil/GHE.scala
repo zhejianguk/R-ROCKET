@@ -215,7 +215,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
                                           doReadELU_S4        -> io.elu_data_in(263,208),
                                           doCheckELU          -> io.elu_status_in(elu_sel),
                                           doFIRead            -> io.fi_latency,
-                                          doPerfRead          -> io.debug_perf_val_in
+                                          doPerfRead          -> io.elu_data_in(31,0)
                                           )
                                           )
                                           

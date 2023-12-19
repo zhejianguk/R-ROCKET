@@ -140,17 +140,20 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
                                                    Mux(fsm_state === fsm_postchecking, icsl_stalld_fsm_postchecking, false.B)), false.B)
 
   /* Debug Perf */
-  val debug_perf_howmany_checkpoints             = RegInit(0.U(64.W))
-  val debug_perf_checking                        = RegInit(0.U(64.W))
-  val debug_perf_postchecking                    = RegInit(0.U(64.W))
-  val debug_perf_otherthread                     = RegInit(0.U(64.W))
-  val debug_perf_nonchecking                     = RegInit(0.U(64.W))
+  val debug_perf_howmany_checkpoints             = RegInit(0.U(32.W))
+  val debug_perf_checking                        = RegInit(0.U(32.W))
+  val debug_perf_postchecking                    = RegInit(0.U(32.W))
+  val debug_perf_otherthread                     = RegInit(0.U(32.W))
+  val debug_perf_nonchecking                     = RegInit(0.U(32.W))
+  val debug_clk_div                              = RegInit(0.U(5.W))
 
+  debug_clk_div                                 := Mux(debug_clk_div === 10.U, 0.U, debug_clk_div)
+  val debug_clk_raising                          = (debug_clk_div === 10.U)
   debug_perf_howmany_checkpoints                := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_reset) && (fsm_state_delay === fsm_postchecking), debug_perf_howmany_checkpoints + 1.U, debug_perf_howmany_checkpoints))
-  debug_perf_checking                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_checking), debug_perf_checking + 1.U, debug_perf_checking))
-  debug_perf_postchecking                       := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_postchecking), debug_perf_postchecking + 1.U, debug_perf_postchecking))
-  debug_perf_otherthread                        := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_checking) || (fsm_state === fsm_postchecking) && !io.if_correct_process.asBool,  debug_perf_otherthread + 1.U, debug_perf_otherthread))
-  debug_perf_nonchecking                        := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking), debug_perf_nonchecking + 1.U, debug_perf_nonchecking))
+  debug_perf_checking                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_checking) && debug_clk_raising, debug_perf_checking + 1.U, debug_perf_checking))
+  debug_perf_postchecking                       := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_postchecking) && debug_clk_raising, debug_perf_postchecking + 1.U, debug_perf_postchecking))
+  debug_perf_otherthread                        := Mux(io.debug_perf_reset.asBool, 0.U, Mux(((fsm_state === fsm_checking) || (fsm_state === fsm_postchecking)) && (!io.if_correct_process.asBool && debug_clk_raising),  debug_perf_otherthread + 1.U, debug_perf_otherthread))
+  debug_perf_nonchecking                        := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking) && debug_clk_raising, debug_perf_nonchecking + 1.U, debug_perf_nonchecking))
 
   io.debug_perf_val                             := Mux(io.debug_perf_sel === 7.U, debug_perf_howmany_checkpoints, 
                                                    Mux(io.debug_perf_sel === 1.U, debug_perf_checking,

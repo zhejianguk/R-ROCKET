@@ -306,7 +306,6 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     if_correct_process_bridge.io.in := cmdRouter.get.io.if_correct_process_out
     record_pc_bridge.io.in := cmdRouter.get.io.record_pc_out
     cmdRouter.get.io.elu_data_in := core.io.elu_data
-    cmdRouter.get.io.debug_perf_val_in := core.io.debug_perf_val
     elu_deq_bridge.io.in := cmdRouter.get.io.elu_deq_out
     elu_sel_bridge.io.in := cmdRouter.get.io.elu_sel_out
     //===== GuardianCouncil Function: End   ====//

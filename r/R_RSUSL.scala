@@ -222,9 +222,10 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
 
   io.rsu_status                                  := rsu_status
 
-  // val width_of_error_code                         = 4*params.xLen+8
+  // val width_of_error_code                         = 
   // This is wrong, which is just for reducing the size of the design
-  val width_of_error_code                         = 4
+  /*
+  val width_of_error_code                         = 4*params.xLen+8
   val u_channel                                   = Module (new GH_MemFIFO(FIFOParams((width_of_error_code), 1)))
   val channel_enq_valid                           = WireInit(false.B)
   val channel_enq_data                            = WireInit(0.U((width_of_error_code).W))
@@ -272,4 +273,24 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
         checking_counter_memdelay, farf_data_ECP, print_farf_data, arf_data_ECP, print_arf_data))
     }
   }
+  */
+
+  // Faking ELU data 
+  val checking_counter_memdelay                   = RegInit(0.U(8.W))
+  checking_counter_memdelay                      := checking_counter
+  val if_check_completed                          = WireInit(0.U(1.W))
+
+  when (!do_check.asBool) {
+    do_check                                     := Mux(io.do_cp_check.asBool && !if_check_completed.asBool, 1.U, 0.U)
+    checking_counter                             := Mux(io.clear_ic_status.asBool, 0.U, checking_counter)
+  } .otherwise {
+    do_check                                     := Mux(if_check_completed.asBool, 0.U, 1.U)
+    checking_counter                             := Mux(checking_counter === 0x19.U, checking_counter, checking_counter + 1.U)
+  }
+  if_check_completed                             := (checking_counter_memdelay === 0x19.U).asUInt
+  io.if_cp_check_completed                       := if_check_completed
+
+  io.core_hang_up                                := apply_snapshot | apply_snapshot_memdelay | io.record_context | recording_context | (do_check.asBool && !if_check_completed.asBool)  
+  io.elu_cp_data                                 := 0.U
+  io.elu_status                                  := 0.U
 }

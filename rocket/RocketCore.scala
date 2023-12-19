@@ -822,7 +822,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
   val rsu_slave = Module(new R_RSUSL(R_RSUSLParams(xLen, 32)))
-  val lsl = Module(new R_LSL(R_LSLParams(400, xLen)))
+  val lsl = Module(new R_LSL(R_LSLParams(255, xLen)))
   val icsl = Module(new R_ICSL(R_ICSLParams(16)))
   val arfs_shadow = Reg(Vec(32, UInt(xLen.W)))
 
@@ -892,7 +892,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl.io.num_valid_insts_in_pipeline := icsl_if_valid + icsl_ex_valid + icsl_mem_valid + icsl_wb_valid
   icsl.io.debug_perf_reset := io.debug_perf_ctrl(0)
   icsl.io.debug_perf_sel := io.debug_perf_ctrl(3,1)
-  io.debug_perf_val := icsl.io.debug_perf_val
 
   // Instantiate LSL
   lsl.io.m_st_valid := Mux((io.packet_lsl(138, 136) === 2.U), 1.U, 0.U)
@@ -937,7 +936,11 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   elu.io.lsl_resp_data := lsl_resp_data
   elu.io.wb_pc := Mux(wb_reg_valid, wb_reg_pc, 0.U)
   elu.io.wb_inst := Mux(wb_reg_valid, wb_reg_inst, 0.U)
-  io.elu_data := Mux(io.elu_sel.asBool, rsu_slave.io.elu_cp_data, elu.io.elu_data)
+
+  // io.elu_data := Mux(io.elu_sel.asBool, rsu_slave.io.elu_cp_data, elu.io.elu_data)
+  // Faking ELU data
+  io.elu_data := icsl.io.debug_perf_val
+
   io.elu_status := Cat(rsu_slave.io.elu_status, elu.io.elu_status)
   elu.io.elu_deq := Mux(!io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
   elu.io.lsl_resp_addr := lsl_resp_addr
