@@ -677,6 +677,10 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val fi_sel_in  = Input(UInt(8.W))
     val fi_latency = Input(UInt(64.W))
     val rsu_status_in = Input(UInt(2.W))
+    val elu_data_in = Input(UInt(GH_GlobalParams.GH_WIDITH_PERF.W))
+
+    val debug_perf_ctrl_out = Output(UInt(4.W))
+    val debug_perf_ctrl_in = Input(UInt(4.W))
     //===== GuardianCouncil Function: End   ====//
   }
 
@@ -711,6 +715,8 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
   io.s_or_r_out := io.s_or_r_in
   io.arf_copy_out := io.arf_copy_in
   io.core_trace_out := io.core_trace_in
+
+  io.debug_perf_ctrl_out := io.debug_perf_ctrl_in
   //===== GuardianCouncil Function: End   ====//
   assert(PopCount(cmdReadys) <= 1.U,
     "Custom opcode matched for more than one accelerator")

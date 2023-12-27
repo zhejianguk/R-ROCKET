@@ -33,7 +33,7 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
 
   val debug_perf_reset                           = Input(UInt(1.W))
   val debug_perf_sel                             = Input(UInt(3.W))
-  val debug_perf_val                             = Output(UInt(32.W))                                 
+  val debug_perf_val                             = Output(UInt(64.W))                                 
 }
 
 trait HasR_ICSLIO extends BaseModule {

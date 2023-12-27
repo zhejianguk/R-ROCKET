@@ -36,6 +36,10 @@ class R_ICIO(params: R_ICParams) extends Bundle {
   val changing_num_of_checker                    = Input(UInt((1.W)))
   val core_trace                                 = Input(UInt((1.W)))
   val ic_trace                                   = Input(UInt((1.W)))
+
+  val debug_perf_reset                           = Input(UInt((1.W)))
+  val debug_perf_sel                             = Input(UInt(3.W))
+  val debug_perf_val                             = Output(UInt(64.W))
 }
 
 trait HasR_ICIO extends BaseModule {
@@ -44,19 +48,19 @@ trait HasR_ICIO extends BaseModule {
 }
 
 class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
-  val crnt_target                                = RegInit(0.U(3.W))
-  val crnt_mask                                  = RegInit(0.U(5.W))
-  val nxt_target                                 = RegInit(0.U(3.W))
-  val ctrl                                       = RegInit(0.U(2.W))
+  val crnt_target                               = RegInit(0.U(3.W))
+  val crnt_mask                                 = RegInit(0.U(5.W))
+  val nxt_target                                = RegInit(0.U(3.W))
+  val ctrl                                      = RegInit(0.U(2.W))
 
-  val if_filtering                               = WireInit(0.U(1.W))
-  val if_pipeline_stall                          = WireInit(0.U(1.W))
-  val if_dosnap                                  = WireInit(0.U(1.W))
-  val sch_reset                                  = WireInit(0.U(1.W))
+  val if_filtering                              = WireInit(0.U(1.W))
+  val if_pipeline_stall                         = WireInit(0.U(1.W))
+  val if_dosnap                                 = WireInit(0.U(1.W))
+  val sch_reset                                 = WireInit(0.U(1.W))
 
-  val ic_counter                                 = RegInit(VecInit(Seq.fill(params.totalnumber_of_cores)(0.U(params.width_of_ic.W))))
-  val ic_status                                  = RegInit(VecInit(Seq.fill(params.totalnumber_of_cores)(0.U(1.W)))) // 0: idle; 1: running
-  val clear_ic_status                            = WireInit(VecInit(Seq.fill(params.totalnumber_of_cores)(0.U(1.W)))) // 0: idle; 1: running
+  val ic_counter                                = RegInit(VecInit(Seq.fill(params.totalnumber_of_cores)(0.U(params.width_of_ic.W))))
+  val ic_status                                 = RegInit(VecInit(Seq.fill(params.totalnumber_of_cores)(0.U(1.W)))) // 0: idle; 1: running
+  val clear_ic_status                           = WireInit(VecInit(Seq.fill(params.totalnumber_of_cores)(0.U(1.W)))) // 0: idle; 1: running
 
   // FPS scheduler
   val sch_result                                = WireInit(0.U(5.W))
@@ -261,5 +265,17 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   for (i <- 0 to params.totalnumber_of_cores - 1){
     clear_ic_status(i)                          := io.clear_ic_status(i)
   }
+
+  /* Debug Perf */
+  val debug_perf_CCounter                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
+  val debug_perf_BCounter                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
+  val if_blocked_bySched                         = WireInit(false.B)
+  if_blocked_bySched                            := ((fsm_state === fsm_sch) && io.if_correct_process.asBool) && !ic_status(sch_result).asBool
+
+  debug_perf_BCounter                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux(if_blocked_bySched && !ic_status.reduce(_&_), debug_perf_BCounter + 1.U, debug_perf_BCounter))
+  debug_perf_CCounter                           := Mux(io.debug_perf_reset.asBool, 0.U, debug_perf_CCounter + 1.U)
+
+  io.debug_perf_val                             := Mux(io.debug_perf_sel === 7.U, debug_perf_CCounter, 
+                                                   Mux(io.debug_perf_sel === 1.U, debug_perf_BCounter, 0.U))
 
 }
