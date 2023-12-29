@@ -270,7 +270,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   val debug_perf_CCounter                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
   val debug_perf_BCounter                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
   val if_blocked_bySched                         = WireInit(false.B)
-  if_blocked_bySched                            := ((fsm_state === fsm_sch) && io.if_correct_process.asBool) && !ic_status(sch_result).asBool
+  if_blocked_bySched                            := ((fsm_state === fsm_sch) && io.if_correct_process.asBool) && ic_status(sch_result).asBool
 
   debug_perf_BCounter                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux(if_blocked_bySched && !ic_status.reduce(_&_), debug_perf_BCounter + 1.U, debug_perf_BCounter))
   debug_perf_CCounter                           := Mux(io.debug_perf_reset.asBool, 0.U, debug_perf_CCounter + 1.U)
