@@ -1224,14 +1224,12 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall
 
   //===== GuardianCouncil Function: Start ====//
-  when (mem_pc_valid) {
-    io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc
+    io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc && !killm_common
     io.rocc.exception := mem_xcpt && csr.io.status.xs.orR
     io.rocc.cmd.bits.status := csr.io.status
     io.rocc.cmd.bits.inst := new RoCCInstruction().fromBits(mem_reg_inst)
     io.rocc.cmd.bits.rs1 := mem_reg_wdata
     io.rocc.cmd.bits.rs2 := mem_reg_rs2
-  }
 
   io.ght_prv := csr.io.status.prv
   //===== GuardianCouncil Function: End  ====//

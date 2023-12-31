@@ -115,6 +115,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val zeros_62bits            = WireInit(0.U(62.W))
     val zeros_20bits            = WireInit(0.U(20.W))
     val zeros_1bit              = WireInit(0.U(1.W))
+    val zeros_3bit              = WireInit(0.U(3.W))
 
     val elu_sel                = RegInit(0.U(1.W))
     rd_val                     := MuxCase(0.U, 
@@ -127,7 +128,7 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
                                           doCheckM_PPN        -> Cat(zeros_20bits, ght_monitor_satp_ppn),
                                           doCheckM_SysMode    -> Cat(zeros_62bits, ght_monitor_sys_mode),
                                           doCheckCritial      -> Cat(zeros_62bits, ght_critial_reg(1,0)),
-                                          doCheckRSU          -> io.rsu_status_in,
+                                          doCheckRSU          -> Cat(io.rsu_status_in, zeros_3bit),
                                           doPerfRead          -> io.elu_data_in(63,0)
                                           )
                                           )
