@@ -742,7 +742,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val wb_csr = (wb_reg_inst(6,0) === 0x73.U) && ((wb_reg_inst(14,12) === 0x2.U) || (wb_reg_inst(14,12) === 0x1.U)) && wb_reg_valid
   lsl_resp_replay_csr := Mux(checker_mode.asBool, wb_csr && !lsl_req_ready_csr, false.B)
 
-  val wb_set_sboard = wb_ctrl.div || wb_dcache_miss || wb_ctrl.rocc
+  /* IN GC, ROCC IS NOT A LONG-LATENCY INSTRUCTION ANY MORE */
+  val wb_set_sboard = wb_ctrl.div || wb_dcache_miss
   val replay_wb_common = Mux(checker_mode === 1.U, false.B, io.dmem.s2_nack) || wb_reg_replay
   val replay_wb_without_overtaken = replay_wb_common || replay_wb_rocc
   val wb_should_be_valid_but_be_overtaken = Mux(checker_mode.asBool, icsl_if_overtaking.asBool && wb_reg_valid && !replay_wb_without_overtaken && !replay_wb_lsl && !wb_xcpt && !io.rocc.resp.valid, false.B)
