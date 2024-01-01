@@ -761,6 +761,20 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   */
   //===== GuardianCouncil Function: End   ====//
 
+  //===== GuardianCouncil Function: Start ====//
+  // Original design:
+  // val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt
+  // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
+  val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt
+  /*
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (wb_reg_valid && !wb_valid && io.core_trace.asBool) {
+      printf(midas.targetutils.SynthesizePrintf("C%d: bl-wb[%x], [%x].\n",
+          io.hartid, replay_wb.asUInt, wb_xcpt.asUInt))
+    }
+  }
+  */
+  
   // writeback arbitration
   val dmem_resp_xpu = Mux((checker_mode === 1.U), !lsl_resp_tag(0).asBool, !io.dmem.resp.bits.tag(0).asBool)
   val dmem_resp_fpu = Mux((checker_mode === 1.U), lsl_resp_tag(0).asBool, io.dmem.resp.bits.tag(0).asBool)
@@ -772,13 +786,14 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val ll_wdata = Wire(init = div.io.resp.bits.data)
   val ll_waddr = Wire(init = div.io.resp.bits.tag)
   val ll_wen = Wire(init = div.io.resp.fire())
+
   if (usingRoCC) {
     io.rocc.resp.ready := Bool(true)
     when (io.rocc.resp.fire()) {
       div.io.resp.ready := Bool(false)
       ll_wdata := io.rocc.resp.bits.data
       ll_waddr := io.rocc.resp.bits.rd
-      ll_wen := Bool(true)
+      ll_wen := wb_valid /* THIS IS A BLACK HACK, BECAUSE THE ROCC ISA IS NOW HANDLED AT MEM STAGE AND MUST BE REPLIED AT 1 CYCLE */
     }
   }
   when (dmem_resp_replay && dmem_resp_xpu) {
@@ -789,19 +804,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     ll_wen := Bool(true)
   }
 
-  //===== GuardianCouncil Function: Start ====//
-  // Original design:
-  // val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt
-  // In GuardianCouncil, RoCC response can be replied in a single cycle, therefore !io.rocc.resp.valid is added
-  val wb_valid = wb_reg_valid && !replay_wb && !wb_xcpt && !io.rocc.resp.valid
-  /*
-  if (GH_GlobalParams.GH_DEBUG == 1) {
-    when (wb_reg_valid && !wb_valid && io.core_trace.asBool) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: bl-wb[%x], [%x].\n",
-          io.hartid, replay_wb.asUInt, wb_xcpt.asUInt))
-    }
-  }
-  */
+
   
   //===== GuardianCouncil Function: End   ====//
   val wb_wen = wb_valid && wb_ctrl.wxd && !lsl_resp_replay_csr
@@ -964,7 +967,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   csr.io.decode(0).inst := id_inst(0)
   csr.io.exception := wb_xcpt
   csr.io.cause := wb_cause
-  csr.io.retire := wb_valid || io.rocc.resp.valid // In GC, rocc_resp is always delivered with an instruction commitment
+  csr.io.retire := wb_valid
   csr.io.inst(0) := (if (usingCompressed) Cat(Mux(wb_reg_raw_inst(1, 0).andR, wb_reg_inst >> 16, 0.U), wb_reg_raw_inst(15, 0)) else wb_reg_inst)
   csr.io.interrupts := io.interrupts
   csr.io.hartid := io.hartid
@@ -1224,12 +1227,16 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall
 
   //===== GuardianCouncil Function: Start ====//
-    io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc && !killm_common
-    io.rocc.exception := mem_xcpt && csr.io.status.xs.orR
-    io.rocc.cmd.bits.status := csr.io.status
-    io.rocc.cmd.bits.inst := new RoCCInstruction().fromBits(mem_reg_inst)
-    io.rocc.cmd.bits.rs1 := mem_reg_wdata
-    io.rocc.cmd.bits.rs2 := mem_reg_rs2
+  val checker_mode_delay = Reg(UInt())
+  checker_mode_delay := checker_mode
+  val if_check_rocc_replay = Mux(checker_mode_delay === 1.U, true.B, !killm_common)
+  
+  io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc && if_check_rocc_replay /* REVISIT: ROCC IS NOT SUPPORTED */
+  io.rocc.exception := mem_xcpt && csr.io.status.xs.orR
+  io.rocc.cmd.bits.status := csr.io.status
+  io.rocc.cmd.bits.inst := new RoCCInstruction().fromBits(mem_reg_inst)
+  io.rocc.cmd.bits.rs1 := mem_reg_wdata
+  io.rocc.cmd.bits.rs2 := mem_reg_rs2
 
   io.ght_prv := csr.io.status.prv
   //===== GuardianCouncil Function: End  ====//
