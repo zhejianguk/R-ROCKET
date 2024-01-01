@@ -1226,12 +1226,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   // don't let D$ go to sleep if we're probably going to use it soon
   io.dmem.keep_clock_enabled := ibuf.io.inst(0).valid && id_ctrl.mem && !csr.io.csr_stall
 
-  //===== GuardianCouncil Function: Start ====//
-  val checker_mode_delay = Reg(UInt())
-  checker_mode_delay := checker_mode
-  val if_check_rocc_replay = Mux(checker_mode_delay === 1.U, true.B, !killm_common)
-  
-  io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc && if_check_rocc_replay /* REVISIT: ROCC IS NOT SUPPORTED */
+  //===== GuardianCouncil Function: Start ====//  
+  io.rocc.cmd.valid := mem_reg_valid && mem_ctrl.rocc && !wb_reg_replay
   io.rocc.exception := mem_xcpt && csr.io.status.xs.orR
   io.rocc.cmd.bits.status := csr.io.status
   io.rocc.cmd.bits.inst := new RoCCInstruction().fromBits(mem_reg_inst)
