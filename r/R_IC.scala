@@ -267,15 +267,30 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   }
 
   /* Debug Perf */
+  var if_anycore_available                       = WireInit(0.U(1.W))
+  for (i <- 1 to params.totalnumber_of_cores - 1){
+    if_anycore_available                        := if_anycore_available & ic_status(i)
+  }
+
   val debug_perf_CCounter                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
   val debug_perf_BCounter                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
+  val debug_perf_SchState                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
+  val debug_perf_CheckState                      = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
+  val debug_perf_OtherThread                     = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
+
   val if_blocked_bySched                         = WireInit(false.B)
   if_blocked_bySched                            := ((fsm_state === fsm_sch) && io.if_correct_process.asBool) && ic_status(sch_result).asBool
 
-  debug_perf_BCounter                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux(if_blocked_bySched && !ic_status.reduce(_&_), debug_perf_BCounter + 1.U, debug_perf_BCounter))
   debug_perf_CCounter                           := Mux(io.debug_perf_reset.asBool, 0.U, debug_perf_CCounter + 1.U)
+  debug_perf_BCounter                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux(if_blocked_bySched && !if_anycore_available.asBool, debug_perf_BCounter + 1.U, debug_perf_BCounter))
+  debug_perf_SchState                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux(fsm_state === fsm_sch, debug_perf_SchState + 1.U, debug_perf_SchState))
+  debug_perf_CheckState                         := Mux(io.debug_perf_reset.asBool, 0.U, Mux(fsm_state === fsm_check, debug_perf_CheckState + 1.U, debug_perf_CheckState))
+  debug_perf_OtherThread                        := Mux(io.debug_perf_reset.asBool, 0.U, Mux(!io.if_correct_process.asBool, debug_perf_OtherThread + 1.U, debug_perf_OtherThread))
+
 
   io.debug_perf_val                             := Mux(io.debug_perf_sel === 7.U, debug_perf_CCounter, 
-                                                   Mux(io.debug_perf_sel === 1.U, debug_perf_BCounter, 0.U))
-
+                                                   Mux(io.debug_perf_sel === 1.U, debug_perf_BCounter,
+                                                   Mux(io.debug_perf_sel === 2.U, debug_perf_SchState, 
+                                                   Mux(io.debug_perf_sel === 3.U, debug_perf_CheckState,
+                                                   Mux(io.debug_perf_sel === 4.U, debug_perf_OtherThread, 0.U)))))
 }
