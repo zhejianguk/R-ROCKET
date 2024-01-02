@@ -269,7 +269,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   /* Debug Perf */
   var if_anycore_available                       = WireInit(0.U(1.W))
   for (i <- 1 to params.totalnumber_of_cores - 1){
-    if_anycore_available                        := if_anycore_available & ic_status(i)
+    if_anycore_available                         = if_anycore_available & ic_status(i)
   }
 
   val debug_perf_CCounter                        = RegInit(0.U(GH_GlobalParams.GH_WIDITH_PERF.W))
