@@ -301,3 +301,4 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
                                                    Mux(io.debug_perf_sel === 4.U, debug_perf_OtherThread, 
                                                    Mux(io.debug_perf_sel === 5.U, debug_perf_SchState_Allbusy, 
                                                    Mux(io.debug_perf_sel === 6.U, debug_perf_SchState_OT, 0.U)))))))
+}
