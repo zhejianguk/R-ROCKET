@@ -129,6 +129,9 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
                                           doCheckM_SysMode    -> Cat(zeros_62bits, ght_monitor_sys_mode),
                                           doCheckCritial      -> Cat(zeros_62bits, ght_critial_reg(1,0)),
                                           doCheckRSU          -> Cat(io.rsu_status_in, zeros_3bit),
+                                          doDebug_bp_checker  -> io.debug_bp_checker,
+                                          doDebug_bp_cdc      -> io.debug_bp_cdc,
+                                          doDebug_bp_filter   -> io.debug_bp_filter,
                                           doPerfRead          -> io.elu_data_in(63,0)
                                           )
                                           )

@@ -64,6 +64,7 @@ class GHT_IO (params: GHTParams) extends Bundle {
   val gtimer                                    = Input(UInt(62.W))
   val gtimer_reset                              = Input(UInt(1.W))
   val use_fi_mode                               = Input(UInt(1.W))
+  val if_correct_process                        = Input(UInt(1.W))
 }
 
 trait HasGHT_IO extends BaseModule {
@@ -274,7 +275,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   when (io.debug_bp_reset === 1.U) {
     debug_bp_checker                            := 0.U
   } .otherwise {
-    when ((u_ght_filters.io.core_hang_up === 1.U) && (io.debug_bp_in(0) === 1.U)){
+    when ((u_ght_filters.io.core_hang_up === 1.U) && (io.debug_bp_in(0) === 1.U) && io.if_correct_process.asBool){
       debug_bp_checker                          := debug_bp_checker + 1.U
     } .otherwise {
       debug_bp_checker                          := debug_bp_checker
@@ -284,7 +285,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   when (io.debug_bp_reset === 1.U) {
     debug_bp_cdc                                := 0.U
   } .otherwise {
-    when ((u_ght_filters.io.core_hang_up === 1.U) && (io.debug_bp_in === 2.U)){
+    when ((u_ght_filters.io.core_hang_up === 1.U) && (io.debug_bp_in === 2.U) && io.if_correct_process.asBool){
       debug_bp_cdc                              := debug_bp_cdc + 1.U
     } .otherwise {
       debug_bp_cdc                              := debug_bp_cdc
@@ -294,7 +295,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   when (io.debug_bp_reset === 1.U) {
     debug_bp_filter                             := 0.U
   } .otherwise {
-    when ((u_ght_filters.io.core_hang_up === 1.U) && (io.debug_bp_in === 0.U)){
+    when ((u_ght_filters.io.core_hang_up === 1.U) && (io.debug_bp_in === 0.U) && io.if_correct_process.asBool){
       debug_bp_filter                           := debug_bp_filter + 1.U
     } .otherwise {
       debug_bp_filter                           := debug_bp_filter
