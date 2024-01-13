@@ -45,45 +45,30 @@ class GAGG (val params: GAGGParams)(implicit p: Parameters) extends LazyModule
 {
   lazy val module = new LazyModuleImp(this) {
     val io                                         = IO(new GAGGIO(params))
-    val u_agg                                      = Module (new GHT_AGG(GHM_AGG_Params(params.number_of_little_cores, params.width_GH_packet)))
 
     val packet_out_wires                           = WireInit (VecInit(Seq.fill(params.number_of_little_cores)(0.U(params.width_GH_packet.W))))
-    var sch_na                                     = WireInit(0.U(params.number_of_little_cores.W))
-    val sch_na_in_wires                            = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(params.number_of_little_cores.W))))
     val zeros_nbit                                 = WireInit(0.U((params.number_of_little_cores - 1).W))
     val agg_core_id                                = io.agg_core_id - 1.U
-    val do_refresh                                 = WireInit(0.U(32.W))
 
         
     // Routing
-    for (i <- 0 to params.number_of_little_cores - 1) {
-      packet_out_wires(i)                         := Mux((agg_core_id === i.U), u_agg.io.agg_packet_out, 0.U)
-                                                         
-      u_agg.io.agg_packet_in(i)                   := io.agg_packet_in(i)
-      io.agg_buffer_full(i)                       := u_agg.io.agg_buffer_full(i)
+    for (i <- 0 to params.number_of_little_cores - 1) {  
+      io.agg_buffer_full(i)                       := 0.U
     }
-    u_agg.io.agg_core_full                        := io.agg_core_status(agg_core_id)(1)
-    do_refresh                                    := io.sch_do_refresh(agg_core_id)
 
    
 
     val collecting_checker_status                  = io.agg_core_status.reduce(_&_)
     val if_checkers_empty                          = collecting_checker_status(0)
-    val if_agg_empty                               = Mux((packet_out_wires.reduce(_|_) === 0.U), 1.U, 0.U)
 
-    val if_no_inflight_packets                     = if_checkers_empty & if_agg_empty & u_agg.io.agg_empty
-
-    for(i <- 0 to params.number_of_little_cores - 1) {
-      io.agg_packet_outs(i)                        := packet_out_wires(i)
-      sch_na_in_wires(i)                          := Cat(zeros_nbit, io.sch_na_in(i))
-      io.sch_refresh_out(i)                       := do_refresh(i)
-    }
-
+    val if_no_inflight_packets                     = if_checkers_empty
 
     for(i <- 0 to params.number_of_little_cores - 1) {
-      sch_na                                      = sch_na | (sch_na_in_wires(i) << i)
+      io.agg_packet_outs(i)                       := 0.U
+      io.sch_refresh_out(i)                       := 0.U
     }
-    io.sch_na_out                                := sch_na
+
+    io.sch_na_out                                := 0.U
     io.agg_no_packet_inflight                    := if_no_inflight_packets
     io.fi_d_out                                  := io.fi_d.reverse.reduce(Cat(_,_))
   }
