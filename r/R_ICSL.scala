@@ -140,6 +140,7 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
                                                    Mux(fsm_state === fsm_postchecking, icsl_stalld_fsm_postchecking, false.B)), false.B)
 
   /* Debug Perf */
+  /*
   val debug_perf_howmany_checkpoints             = RegInit(0.U(64.W))
   val debug_perf_checking                        = RegInit(0.U(64.W))
   val debug_perf_postchecking                    = RegInit(0.U(64.W))
@@ -157,4 +158,6 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
                                                    Mux(io.debug_perf_sel === 2.U, debug_perf_postchecking,
                                                    Mux(io.debug_perf_sel === 3.U, debug_perf_otherthread,
                                                    Mux(io.debug_perf_sel === 4.U, debug_perf_nonchecking, 0.U)))))
+  */
+  io.debug_perf_val                             := 0.U
 }

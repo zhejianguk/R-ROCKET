@@ -60,6 +60,7 @@ class GHT_SE (val params: GHT_SE_Params) extends Module with HasGHT_SE_IO
   // Schedulers
   //==========================================================
   // round-robin scheduler
+  /*
   val u_sch_rr                                  = Module (new GHT_SCH_RR(GHT_SCH_Params (params.totalnumber_of_checkers)))
   val core_d_rr                                 = WireInit(0.U(params.totalnumber_of_checkers.W))
   u_sch_rr.io.core_s                           := sch_start_id
@@ -83,6 +84,7 @@ class GHT_SE (val params: GHT_SE_Params) extends Module with HasGHT_SE_IO
     u_sch_rrf.io.core_na(i)                    := io.core_na(i)
   }
   u_sch_rrf.io.rst_sch                         := sch_reset
+  */
 
   // round-robin-4 scheduler
   val u_sch_fp                                  = Module (new GHT_SCH_FP(GHT_SCH_Params (params.totalnumber_of_checkers)))
@@ -97,14 +99,8 @@ class GHT_SE (val params: GHT_SE_Params) extends Module with HasGHT_SE_IO
   u_sch_fp.io.rst_sch                          := sch_reset
 
   io.sch_hang                                  :=  MuxCase(0.U, 
-                                                    Array((sch_policy === 1.U) -> u_sch_rr.io.sch_hang ,
-                                                        (sch_policy === 2.U) -> u_sch_rrf.io.sch_hang,
-                                                        (sch_policy === 3.U) -> u_sch_fp.io.sch_hang,
-                                                        ))
+                                                    Array((sch_policy === 3.U) -> u_sch_fp.io.sch_hang))
 
   io.core_d                                    :=  MuxCase(0.U, 
-                                                    Array((sch_policy === 1.U) -> core_d_rr,
-                                                          (sch_policy === 2.U) -> core_d_rrf,
-                                                          (sch_policy === 3.U) -> core_d_fp,
-                                                          ))
+                                                    Array((sch_policy === 3.U) -> core_d_fp))
 }

@@ -266,7 +266,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
     clear_ic_status(i)                          := io.clear_ic_status(i)
   }
 
-  /* Debug Perf */
+  /* Debug Perf
   var nocore_available                           = WireInit(1.U(1.W))
   for (i <- 1 to params.totalnumber_of_cores - 1){
     nocore_available                             = nocore_available & ic_status(i)
@@ -301,4 +301,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
                                                    Mux(io.debug_perf_sel === 4.U, debug_perf_OtherThread, 
                                                    Mux(io.debug_perf_sel === 5.U, debug_perf_SchState_Allbusy, 
                                                    Mux(io.debug_perf_sel === 6.U, debug_perf_SchState_OT, 0.U)))))))
+
+  */
+  io.debug_perf_val                             := 0.U
 }

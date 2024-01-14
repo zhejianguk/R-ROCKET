@@ -67,12 +67,10 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     val doPID_Cfg               = (cmd.fire && (funct === 0x16.U))
     val doGHT_Cfg               = (cmd.fire && (funct === 0x6.U) && ((rs2_val === 2.U) || (rs2_val === 3.U) || (rs2_val === 4.U)))
     val doGHTBufferCheck        = (cmd.fire && (funct === 0x8.U))
-    val doCheckM_PPN            = (cmd.fire && (funct === 0x17.U))
-    val doCheckM_SysMode        = (cmd.fire && (funct === 0x18.U))
+    // val doCheckM_PPN            = (cmd.fire && (funct === 0x17.U))
+    // val doCheckM_SysMode        = (cmd.fire && (funct === 0x18.U))
     val bigComp                 = io.bigcore_comp (1,0)
     val bigInialised            = io.bigcore_comp (2)
-    val doDebug_MCounter        = (cmd.fire && (funct === 0x19.U))
-    val doDebug_ICounter        = (cmd.fire && (funct === 0x1a.U))
     val doBigCheckIni           = (cmd.fire && (funct === 0x1b.U))
     val doSetActivatedCheckers  = (cmd.fire && (funct === 0x1c.U))
     val doDebug_bp_checker      = (cmd.fire && (funct === 0x1d.U))
@@ -125,8 +123,6 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
                                           doBigCheckComp      -> Cat(bigComp, rs1_val(15, 0)),
                                           doBigCheckIni       -> Cat(bigInialised),
                                           doGHTBufferCheck    -> Cat(zeros_62bits, io.ght_buffer_status),
-                                          doCheckM_PPN        -> Cat(zeros_20bits, ght_monitor_satp_ppn),
-                                          doCheckM_SysMode    -> Cat(zeros_62bits, ght_monitor_sys_mode),
                                           doCheckCritial      -> Cat(zeros_62bits, ght_critial_reg(1,0)),
                                           doCheckRSU          -> Cat(io.rsu_status_in, zeros_3bit),
                                           doDebug_bp_checker  -> io.debug_bp_checker,

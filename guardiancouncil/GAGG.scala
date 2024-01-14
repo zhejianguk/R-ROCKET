@@ -46,9 +46,7 @@ class GAGG (val params: GAGGParams)(implicit p: Parameters) extends LazyModule
   lazy val module = new LazyModuleImp(this) {
     val io                                         = IO(new GAGGIO(params))
 
-    val packet_out_wires                           = WireInit (VecInit(Seq.fill(params.number_of_little_cores)(0.U(params.width_GH_packet.W))))
     val zeros_nbit                                 = WireInit(0.U((params.number_of_little_cores - 1).W))
-    val agg_core_id                                = io.agg_core_id - 1.U
 
         
     // Routing
