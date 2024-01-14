@@ -57,8 +57,8 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   /* Loading snapshot from RSU Master */
   val arfs_ss                                     = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
   val farfs_ss                                    = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
-  val arfs_ss_ECP                                 = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
-  val farfs_ss_ECP                                = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
+  // val arfs_ss_ECP                                 = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
+  // val farfs_ss_ECP                                = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
   val arfs_ss_GMode                               = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
   val farfs_ss_GMode                              = SyncReadMem(params.numARFS+1, UInt(params.xLen.W))
 
@@ -102,13 +102,13 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   val if_RSU_packet_ECP                           = WireInit(0.U(1.W))
   val packet_valid_ECP                            = RegInit(0.U(1.W)) 
   val packet_index_ECP                            = RegInit(0.U(8.W))
-  val packet_arfs_ECP                             = RegInit(0.U(params.xLen.W))
-  val packet_farfs_ECP                            = RegInit(0.U(params.xLen.W))
+  // val packet_arfs_ECP                             = RegInit(0.U(params.xLen.W))
+  // val packet_farfs_ECP                            = RegInit(0.U(params.xLen.W))
   
   if_RSU_packet_ECP                              := Mux(io.arfs_if_ARFS.asBool && !io.arfs_if_CPS.asBool, 1.U, 0.U) 
   packet_valid_ECP                               := Mux(if_RSU_packet_ECP === 1.U, 1.U, 0.U)
-  packet_arfs_ECP                                := Mux(if_RSU_packet_ECP === 1.U, io.arfs_merge(63,0), 0.U)
-  packet_farfs_ECP                               := Mux(if_RSU_packet_ECP === 1.U, io.arfs_merge(127,64), 0.U)
+  // packet_arfs_ECP                                := Mux(if_RSU_packet_ECP === 1.U, io.arfs_merge(63,0), 0.U)
+  // packet_farfs_ECP                               := Mux(if_RSU_packet_ECP === 1.U, io.arfs_merge(127,64), 0.U)
   packet_index_ECP                               := Mux(if_RSU_packet_ECP === 1.U, io.arfs_index, 0.U)
 
   when (packet_valid === 1.U) {
@@ -124,18 +124,20 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
     */
   } 
   
+  /*
   when (packet_valid_ECP === 1.U) {
     arfs_ss_ECP.write(packet_index_ECP, packet_arfs_ECP)
     farfs_ss_ECP.write(packet_index_ECP, packet_farfs_ECP)
-    /*
     if (GH_GlobalParams.GH_DEBUG == 1) { 
       when (io.core_trace.asBool){
         printf(midas.targetutils.SynthesizePrintf("PACKET_CPE: [Index = %d] [Packet_arfs = %x], [Packet_farfs = %x]. \n", 
         packet_index_ECP, packet_arfs_ECP, packet_farfs_ECP))
       }
     }
-    */
-  }
+  }   
+  */
+
+  
 
   pcarfs_ss                                      := Mux(packet_valid.asBool && (packet_index === 0x20.U), packet_arfs(39,0), pcarfs_ss)
   rsu_status                                     := Mux(io.clear_ic_status.asBool, 0.U, Mux(packet_index === 0x20.U, 1.U, Mux(packet_index_ECP === 0x20.U, 3.U, rsu_status)))
@@ -146,10 +148,10 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   val arf_addr                                    = WireInit(0.U(8.W))
   val farf_addr                                   = WireInit(0.U(8.W))
   
-  val arf_data_ECP                                = WireInit(0.U((params.xLen.W)))
-  val farf_data_ECP                               = WireInit(0.U((params.xLen.W)))
-  val arf_addr_ECP                                = WireInit(0.U(8.W))
-  val farf_addr_ECP                               = WireInit(0.U(8.W))
+  // val arf_data_ECP                                = WireInit(0.U((params.xLen.W)))
+  // val farf_data_ECP                               = WireInit(0.U((params.xLen.W)))
+  // val arf_addr_ECP                                = WireInit(0.U(8.W))
+  // val farf_addr_ECP                               = WireInit(0.U(8.W))
 
   val apply_snapshot                              = RegInit(0.U(1.W))
   val apply_snapshot_memdelay                     = RegInit(0.U(1.W))
@@ -166,10 +168,10 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   arf_data                                       := Mux(!io.store_from_checker, arfs_ss.read(arf_addr, apply_snapshot.asBool), arfs_ss_GMode.read(arf_addr, apply_snapshot.asBool))
   farf_data                                      := Mux(!io.store_from_checker, farfs_ss.read(farf_addr, apply_snapshot.asBool), farfs_ss_GMode.read(arf_addr, apply_snapshot.asBool))
 
-  arf_addr_ECP                                   := Mux(do_check.asBool, checking_counter, 0.U)
-  farf_addr_ECP                                  := Mux(do_check.asBool, checking_counter, 0.U)
-  arf_data_ECP                                   := arfs_ss_ECP.read(arf_addr_ECP,  do_check.asBool)
-  farf_data_ECP                                  := farfs_ss_ECP.read(farf_addr_ECP, do_check.asBool)
+  // arf_addr_ECP                                   := Mux(do_check.asBool, checking_counter, 0.U)
+  // farf_addr_ECP                                  := Mux(do_check.asBool, checking_counter, 0.U)
+  // arf_data_ECP                                   := arfs_ss_ECP.read(arf_addr_ECP,  do_check.asBool)
+  // farf_data_ECP                                  := farfs_ss_ECP.read(farf_addr_ECP, do_check.asBool)
 
 
   when ((io.paste_arfs === 0x01.U) && (apply_snapshot === 0.U)) {
@@ -210,7 +212,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
     }
   
     when ((io.core_trace.asBool) && (packet_valid_ECP.asBool) && (packet_index_ECP === 0x20.U)) {
-      printf(midas.targetutils.SynthesizePrintf("[C%x-CPE] = [%x]\n", io.core_id, packet_arfs_ECP))
+      // printf(midas.targetutils.SynthesizePrintf("[C%x-CPE] = [%x]\n", io.core_id, packet_arfs_ECP))
     }
 
   }
@@ -274,8 +276,8 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   }
   */
 
-  // Faking ELU data 
-  val checking_counter_memdelay                   = RegInit(0.U(8.W))
+  // Faking ELU data
+  val checking_counter_memdelay                   = RegInit(0.U(2.W))
   checking_counter_memdelay                      := checking_counter
   val if_check_completed                          = WireInit(0.U(1.W))
 
@@ -284,9 +286,9 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
     checking_counter                             := Mux(io.clear_ic_status.asBool, 0.U, checking_counter)
   } .otherwise {
     do_check                                     := Mux(if_check_completed.asBool, 0.U, 1.U)
-    checking_counter                             := Mux(checking_counter === 0x19.U, checking_counter, checking_counter + 1.U)
+    checking_counter                             := Mux(checking_counter === 0x2.U, checking_counter, checking_counter + 1.U)
   }
-  if_check_completed                             := (checking_counter_memdelay === 0x19.U).asUInt
+  if_check_completed                             := (checking_counter_memdelay === 0x2.U).asUInt
   io.if_cp_check_completed                       := if_check_completed
 
   io.core_hang_up                                := apply_snapshot | apply_snapshot_memdelay | io.record_context | recording_context | (do_check.asBool && !if_check_completed.asBool)  
