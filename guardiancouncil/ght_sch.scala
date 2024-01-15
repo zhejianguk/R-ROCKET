@@ -178,3 +178,22 @@ class GHT_SCH_RRF (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
   io.sch_dest                                  := Cat(zero, dest)
   io.sch_hang                                  := 0.U
 }
+
+
+class GHT_SCH_PIN (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
+{
+  var core_dest                                 = WireInit(0.U(params.totalnumber_of_checkers.W))
+  var new_packet                                = WireInit(false.B)
+  new_packet                                    = (io.inst_c === 1.U)
+
+  val dest                                      = Mux(new_packet.asBool, io.core_s, 0.U)
+  core_dest                                    := MuxCase(0.U, 
+                                                    Array((dest =/= 0.U) -> (1.U << (dest - 1.U)),
+                                                          (dest === 0.U) -> 0.U
+                                                         ))
+
+  val zero                                      = WireInit(0.U(1.W))
+  io.sch_dest                                  := Cat(zero, dest)
+  io.core_d                                    := core_dest
+  io.sch_hang                                  := 0.U
+}

@@ -826,7 +826,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
   val rsu_slave = Module(new R_RSUSL(R_RSUSLParams(xLen, 32)))
-  val lsl = Module(new R_LSL(R_LSLParams(400, xLen)))
+  val lsl = Module(new R_LSL(R_LSLParams(450, xLen)))
   val icsl = Module(new R_ICSL(R_ICSLParams(16)))
   val arfs_shadow = Reg(Vec(32, UInt(xLen.W)))
 
