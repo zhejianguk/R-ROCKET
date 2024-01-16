@@ -26,6 +26,7 @@ class GH_CDCH2L_IO (params: GH_CDCH2L_Params) extends Bundle {
 
   val cdc_busy                                   = Output(UInt(1.W))
   val cdc_empty                                  = Output(UInt(1.W))
+  val cdc_flag                                   = Output(UInt(1.W))
 }
 
 
@@ -77,6 +78,7 @@ class GH_CDCHS (val params: GH_CDCH2L_Params) extends Module with HasGH_CDCH2L_I
     io.cdc_data_out                             := cdc_data
     io.cdc_busy                                 := cdc_busy
     io.cdc_empty                                := 0.U
+    io.cdc_flag                                 := 0.U
   }
 }
 
@@ -109,31 +111,28 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     cdc_channel_enq_data                        := Mux(((io.cdc_push === 1.U) && (!cdc_channel_full)), io.cdc_data_in, 0.U)
     
     // To Low_Freq:
-    val cdc_data                                 = WireInit(0.U(params.data_width.W))
-    val cdc_ready_forT                           = WireInit(false.B)
-    val cdc_pull_delay                           = RegInit(0.U(1.W))
-    cdc_pull_delay                              := io.cdc_pull
-    cdc_ready_forT                              := Mux((io.cdc_slave_busy === 0.U) && (!cdc_channel_empty) && !io.cdc_pull.asBool, true.B, false.B)
-    val cdc_just_forT                            = Mux((io.cdc_slave_busy === 0.U) && (!cdc_channel_empty) && io.cdc_pull.asBool && !cdc_pull_delay.asBool, true.B, false.B)
-
-    val fsm_reset :: fsm_sending :: Nil = Enum(2)
-    val fsm_state                                = RegInit(fsm_reset)
+    val cdc_data                                 = RegInit(0.U(params.data_width.W))
+    val cdc_flag                                 = RegInit(0.U(1.W))
+    val fsm_send :: fsm_idle :: Nil = Enum(2)
+    val fsm_state                                = RegInit(fsm_send)
     switch (fsm_state) {
-      is (fsm_reset){
-        cdc_data                                := Mux(cdc_ready_forT, cdc_channel_deq_data, 0.U)
-        fsm_state                               := Mux(cdc_ready_forT || cdc_just_forT, fsm_sending, fsm_reset)
-        cdc_channel_deq_ready                   := 0.U
+      is (fsm_send) {
+        cdc_data                                := Mux((!io.cdc_slave_busy.asBool) && (!cdc_channel_empty), cdc_channel_deq_data, 0.U)
+        fsm_state                               := Mux((!io.cdc_slave_busy.asBool) && (!cdc_channel_empty), fsm_idle, fsm_send)
+        cdc_flag                                := cdc_flag
+        cdc_channel_deq_ready                   := false.B
       }
 
-      is (fsm_sending){
-        cdc_data                                := Mux((io.cdc_pull === 1.U), 0.U, cdc_channel_deq_data)
-        fsm_state                               := Mux((io.cdc_pull === 1.U), fsm_reset, fsm_sending)
-        cdc_channel_deq_ready                   := Mux((io.cdc_pull === 1.U), 1.U, 0.U)
+      is (fsm_idle) {
+        cdc_data                                := cdc_channel_deq_data
+        fsm_state                               := fsm_send
+        cdc_flag                                := cdc_flag + 1.U
+        cdc_channel_deq_ready                   := true.B
       }
     }
-
-    io.cdc_data_out                               := cdc_data
-    io.cdc_busy                                   := cdc_channel.io.status_twoslots
-    io.cdc_empty                                  := cdc_channel_empty & (cdc_data === 0.U)
+    io.cdc_flag                                 := cdc_flag
+    io.cdc_data_out                             := cdc_data
+    io.cdc_busy                                 := cdc_channel.io.status_twoslots
+    io.cdc_empty                                := cdc_channel_empty & (cdc_data === 0.U)
   }
 }
