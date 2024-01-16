@@ -67,7 +67,7 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
     for (i <- 0 to params.number_of_little_cores - 1) {      
       u_cdc(i).io.cdc_data_in                     := io.ghm_packet_in
       u_cdc(i).io.cdc_push                        := packet_dest(i)
-      packet_out_wires(i)                         := Cat(u_cdc(i).io.cdc_flag, u_cdc(i).io.cdc_data_out(GH_GlobalParams.GH_NUM_CORES-2, 0))
+      packet_out_wires(i)                         := Cat(u_cdc(i).io.cdc_flag, u_cdc(i).io.cdc_data_out(GH_GlobalParams.GH_WIDITH_PACKETS-2, 0))
       u_cdc(i).io.cdc_pull                        := io.ghe_event_in(i)(4)
       u_cdc(i).io.cdc_slave_busy                  := io.ghe_event_in(i)(0)
       cdc_busy(i)                                 := u_cdc(i).io.cdc_busy
