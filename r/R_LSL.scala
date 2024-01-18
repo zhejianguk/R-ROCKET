@@ -40,6 +40,7 @@ class R_LSLIO(params: R_LSLParams) extends Bundle {
   val near_full = Output(UInt(1.W))
   val resp_data_csr = Output(UInt(params.xLen.W))
   val if_empty = Output(UInt(1.W))
+  val lsl_highwatermark = Output(UInt(1.W))
   // val resp_replay_csr = Output(UInt(1.W))
 }
 
@@ -101,7 +102,7 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   io.resp_has_data           := Mux((resp_valid_reg === 1.U) && (cmd(0) === 1.U), 1.U, 0.U)
   io.resp_replay             := req_valid_reg & !resp_valid_reg & !resp_kill_reg
 
-  val u_channel_csr           = Module (new GH_FIFO(FIFOParams(params.xLen, 8))) // These are rarely used
+  val u_channel_csr           = Module (new GH_FIFO(FIFOParams(params.xLen, 15))) // These are rarely used
   val csr_channel_enq_valid   = WireInit(false.B)
   val csr_channel_enq_data    = WireInit(0.U(params.xLen.W))
   val csr_channel_deq_ready   = WireInit(false.B)
@@ -132,4 +133,5 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   io.near_full               := u_channel.io.status_fiveslots | csr_channel_nearfull
   io.req_ready_csr           := !csr_channel_empty
   io.if_empty                := csr_channel_empty & channel_empty
+  io.lsl_highwatermark       := u_channel.io.high_watermark | u_channel_csr.io.status_fiveslots
 }

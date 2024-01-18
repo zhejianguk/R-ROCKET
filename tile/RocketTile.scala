@@ -171,11 +171,13 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val record_and_store = Wire(0.U(2.W))
 
 
-  val packet_fg = Mux((ptype_fg === 1.U) && !redundant_cdc.asBool, packet_in, 0.U)
-  val packet_rcu = Mux((ptype_rcu === 1.U) && !redundant_cdc.asBool, packet_in, 0.U)
-  val packet_lsl = Mux((ptype_lsl === 1.U) && !redundant_cdc.asBool, packet_in, 0.U)
+  val packet_fg = Mux((ptype_fg === 1.U), packet_in, 0.U)
+  val packet_rcu = Mux((ptype_rcu === 1.U), packet_in, 0.U)
+  val packet_lsl = Mux((ptype_lsl === 1.U), packet_in, 0.U)
 
-
+  val cdc_ack = Reg(1.U(1.W))
+  cdc_ack := Mux(ptype_fg.asBool || ptype_rcu.asBool || ptype_lsl.asBool, cdc_ack + 1.U, cdc_ack)
+  
   val arf_copy_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
   
 
@@ -210,8 +212,8 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     val zeros_4bits = Wire(UInt(width=4))
     zeros_4bits := 0.U
 
-    outer.ghe_event_out_SRNode.bundle := (ghe_bridge.io.out | Cat(core.io.packet_cdc_ready, zeros_4bits) | Cat(zeros_4bits, core.io.lsl_near_full))
-    outer.ghe_revent_out_SRNode.bundle := core.io.lsl_near_full
+    outer.ghe_event_out_SRNode.bundle := Cat(cdc_ack, (ghe_bridge.io.out | Cat(core.io.packet_cdc_ready, zeros_4bits) | Cat(zeros_4bits, core.io.lsl_near_full)))
+    outer.ghe_revent_out_SRNode.bundle := core.io.lsl_highwatermark
     core.io.arfs_if_CPS := arfs_if_CPS
     core.io.packet_arfs := packet_rcu
     core.io.packet_lsl := packet_lsl

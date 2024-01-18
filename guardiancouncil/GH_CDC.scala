@@ -27,6 +27,7 @@ class GH_CDCH2L_IO (params: GH_CDCH2L_Params) extends Bundle {
   val cdc_busy                                   = Output(UInt(1.W))
   val cdc_empty                                  = Output(UInt(1.W))
   val cdc_flag                                   = Output(UInt(1.W))
+  val cdc_ack                                    = Input(UInt(1.W))
 }
 
 
@@ -111,6 +112,7 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     cdc_channel_enq_data                        := Mux(((io.cdc_push === 1.U) && (!cdc_channel_full)), io.cdc_data_in, 0.U)
     
     // To Low_Freq:
+    /*
     val cdc_data                                 = RegInit(0.U(params.data_width.W))
     val cdc_flag                                 = RegInit(0.U(1.W))
     val fsm_send :: fsm_idle :: Nil = Enum(2)
@@ -131,6 +133,20 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
       }
     }
     io.cdc_flag                                 := cdc_flag
+    io.cdc_data_out                             := cdc_data
+    io.cdc_busy                                 := cdc_channel.io.status_twoslots
+    io.cdc_empty                                := cdc_channel_empty & (cdc_data === 0.U)
+    */
+    
+    // To Low_Freq:
+    val cdc_data                                 = WireInit(0.U(params.data_width.W))
+    val cdc_ack_reg                              = RegInit(0.U(1.W))
+    cdc_ack_reg                                 := Mux(cdc_ack_reg =/= io.cdc_ack, io.cdc_ack, cdc_ack_reg)
+
+
+    cdc_data                                    := Mux(!io.cdc_slave_busy.asBool && !cdc_channel_empty, cdc_channel_deq_data, 0.U)
+    cdc_channel_deq_ready                       := Mux(io.cdc_pull.asBool && (cdc_ack_reg =/= io.cdc_ack), true.B, false.B)
+    io.cdc_flag                                 := 0.U
     io.cdc_data_out                             := cdc_data
     io.cdc_busy                                 := cdc_channel.io.status_twoslots
     io.cdc_empty                                := cdc_channel_empty & (cdc_data === 0.U)

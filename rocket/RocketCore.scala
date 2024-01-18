@@ -923,6 +923,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl_resp_has_data := lsl.io.resp_has_data
   lsl_resp_replay := lsl.io.resp_replay
   io.lsl_near_full := lsl.io.near_full
+  io.lsl_highwatermark := lsl.io.lsl_highwatermark
   lsl_resp_data_csr := lsl.io.resp_data_csr
   lsl_req_ready_csr := lsl.io.req_ready_csr
 

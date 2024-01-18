@@ -20,6 +20,7 @@ class FIFOIO(params: FIFOParams) extends Bundle {
   val status_threeslots = Output(UInt(1.W))
   val status_twoslots = Output(UInt(1.W))
   val num_content = Output(UInt(log2Ceil(params.depth).W))
+  val high_watermark = Output(UInt(1.W))
 
   val debug_fcounter = Output(UInt(64.W))
   val debug_fdcounter = Output(UInt(64.W))
@@ -102,6 +103,13 @@ class GH_FIFO(val params: FIFOParams) extends Module with HasFIFOIO {
   io.num_content               := num_contentReg
   io.debug_fcounter            := debug_fcounter
   io.debug_fdcounter           := debug_fdcounter
+  if (params.depth > 100){
+    io.high_watermark          := Mux(num_contentReg >= ((params.depth).U - 50.U),
+                                      1.U, 
+                                      0.U)
+  } else {
+    io.high_watermark          := 0.U
+  }
 }
 
 
@@ -174,4 +182,12 @@ class GH_MemFIFO(val params: FIFOParams) extends Module with HasFIFOIO {
   io.num_content               := num_contentReg
   io.debug_fcounter            := debug_fcounter
   io.debug_fdcounter           := debug_fdcounter
+
+  if (params.depth > 100){
+    io.high_watermark          := Mux(num_contentReg >= ((params.depth).U - 50.U),
+                                      1.U, 
+                                      0.U)
+  } else {
+    io.high_watermark          := 0.U
+  }
 }

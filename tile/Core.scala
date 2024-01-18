@@ -187,6 +187,7 @@ trait HasCoreIO extends HasTileParameters {
     val core_trace = UInt(1.W).asInput
     val record_and_store = UInt(2.W).asInput
     val debug_perf_ctrl = UInt(4.W).asInput
+    val lsl_highwatermark = UInt(1.W).asOutput
     //===== GuardianCouncil Function: End ====//
   }
 }

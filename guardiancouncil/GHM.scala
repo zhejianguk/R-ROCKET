@@ -24,7 +24,7 @@ class GHMIO(params: GHMParams) extends Bundle {
   val ghm_status_in                              = Input(UInt(32.W))
   val ghm_packet_outs                            = Output(Vec(params.number_of_little_cores, UInt(params.width_GH_packet.W)))
   val ghm_status_outs                            = Output(Vec(params.number_of_little_cores, UInt(32.W)))
-  val ghe_event_in                               = Input(Vec(params.number_of_little_cores, UInt(5.W)))
+  val ghe_event_in                               = Input(Vec(params.number_of_little_cores, UInt(6.W)))
   val clear_ic_status                            = Input(Vec(params.number_of_little_cores, UInt(1.W)))
   val clear_ic_status_tomain                     = Output(UInt(GH_GlobalParams.GH_NUM_CORES.W))
   val bigcore_hang                               = Output(UInt(1.W))
@@ -70,6 +70,7 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
       packet_out_wires(i)                         := Cat(u_cdc(i).io.cdc_flag, u_cdc(i).io.cdc_data_out(GH_GlobalParams.GH_WIDITH_PACKETS-2, 0))
       u_cdc(i).io.cdc_pull                        := io.ghe_event_in(i)(4)
       u_cdc(i).io.cdc_slave_busy                  := io.ghe_event_in(i)(0)
+      u_cdc(i).io.cdc_ack                         := io.ghe_event_in(i)(5)
       cdc_busy(i)                                 := u_cdc(i).io.cdc_busy
       cdc_empty(i)                                := u_cdc(i).io.cdc_empty
     }
