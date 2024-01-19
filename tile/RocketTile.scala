@@ -153,22 +153,21 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   /* R Features */
   // A mini-decoder for packets
   val s_or_r = Reg(0.U(1.W))
+  val cdc_flag = Reg(0.U(1.W))
   val packet_in = outer.ghe_packet_in_SKNode.bundle
-  val packet_cdc_flagR = Reg(0.U(1.W))
-  packet_cdc_flagR := packet_in(144)
   val packet_index = packet_in (143, 136)
   val packet_cdc_flag = packet_in(144)
-  val redundant_cdc = Mux(packet_cdc_flagR === packet_cdc_flag, true.B, false.B)
-  val ptype_fg = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 0.U)), 1.U, 0.U)
+  val ptype_fg = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 0.U)) && (cdc_flag =/= packet_cdc_flag), 1.U, 0.U)
   // val ptype_lsl = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 1.U)), 1.U, 0.U)
   // val ptype_rcu = Mux((packet_index(2) === 1.U) && (s_or_r === 1.U), 1.U, 0.U)
-  val ptype_lsl = Mux((s_or_r.asBool && (packet_index(2,0) =/= 7.U) && (packet_index(2,0) =/= 0.U)), 1.U, 0.U)
-  val ptype_rcu = Mux(s_or_r.asBool && (packet_index(2,0) === 7.U), 1.U, 0.U)
+  val ptype_lsl = Mux((s_or_r.asBool && (packet_index(2,0) =/= 7.U) && (packet_index(2,0) =/= 0.U)) && (cdc_flag =/= packet_cdc_flag), 1.U, 0.U)
+  val ptype_rcu = Mux(s_or_r.asBool && (packet_index(2,0) === 7.U) && (cdc_flag =/= packet_cdc_flag), 1.U, 0.U)
 
   val arfs_if_CPS = Mux(ptype_rcu.asBool && (packet_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
   val core_trace = Wire(0.U(2.W))
   val debug_perf_ctrl = Wire(0.U(4.W))
   val record_and_store = Wire(0.U(2.W))
+
 
 
   val packet_fg = Mux((ptype_fg === 1.U), packet_in, 0.U)
@@ -177,6 +176,8 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
 
   val cdc_ack = Reg(1.U(1.W))
   cdc_ack := Mux(ptype_fg.asBool || ptype_rcu.asBool || ptype_lsl.asBool, cdc_ack + 1.U, cdc_ack)
+  cdc_flag := Mux(ptype_fg.asBool || ptype_rcu.asBool || ptype_lsl.asBool, packet_cdc_flag, cdc_flag)
+
   
   val arf_copy_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
   

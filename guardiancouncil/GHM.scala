@@ -253,7 +253,7 @@ object GHMCore {
           icsl_naSRNodes(i).bundle                := 0.U
           icsl_out_SRNodes(i).bundle              := ghm.module.io.icsl_counter(i-1)
           ghm.module.io.ghe_event_in(i-1)         := ghm_ghe_event_in_SKNodes(i).bundle
-          ghm.module.io.ghe_revent_in(i-1)        := ghm_ghe_event_in_SKNodes(i).bundle
+          ghm.module.io.ghe_revent_in(i-1)        := ghm_ghe_revent_in_SKNodes(i).bundle
           ghm.module.io.clear_ic_status(i-1)      := clear_ic_status_SkNodes(i).bundle
         }
       }
