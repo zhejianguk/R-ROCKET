@@ -141,7 +141,7 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     // To Low_Freq:
     val cdc_data                                 = WireInit(0.U(params.data_width.W))
     val cdc_flag_reg                             = RegInit(1.U(1.W))
-    val cdc_ack_reg                              = RegInit(0.U(1.W))
+    val cdc_ack_reg                              = RegInit(1.U(1.W))
 
     cdc_data                                    := Mux(!io.cdc_slave_busy.asBool && !cdc_channel_empty, cdc_channel_deq_data, 0.U)
     cdc_flag_reg                                := Mux(io.cdc_pull.asBool && (cdc_ack_reg =/= io.cdc_ack), cdc_flag_reg + 1.U, cdc_flag_reg)
