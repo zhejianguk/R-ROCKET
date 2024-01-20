@@ -152,9 +152,9 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
 
   /* R Features */
   // A mini-decoder for packets
-  val s_or_r = Reg(0.U(1.W))
-  val cdc_flag = Reg(0.U(1.W))
-  val cdc_ack =Reg(1.U(1.W))
+  val s_or_r = RegInit(0.U(1.W))
+  val cdc_flag = RegInit(0.U(1.W))
+  val cdc_ack =RegInit(1.U(1.W))
 
   val packet_in = outer.ghe_packet_in_SKNode.bundle
   val packet_index = packet_in (143, 136)
