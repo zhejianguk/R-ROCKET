@@ -180,6 +180,23 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val arf_copy_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
   
 
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+  when ((ptype_fg === 1.U) && (packet_in(144) =/= cdc_flag)) {
+      printf(midas.targetutils.SynthesizePrintf("C%d-PKT-FG:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
+      outer.hartIdSinkNode.bundle, packet_in(144, 128), packet_in(127, 64), packet_in(63, 0)))
+    }
+
+  when ((ptype_rcu === 1.U) && (packet_in(144) =/= cdc_flag)) {
+      printf(midas.targetutils.SynthesizePrintf("C%d-PKT-RCU:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
+      outer.hartIdSinkNode.bundle, packet_in(144, 128), packet_in(127, 64), packet_in(63, 0)))
+    }
+
+  when ((ptype_lsl === 1.U) && (packet_in(144) =/= cdc_flag)) {
+      printf(midas.targetutils.SynthesizePrintf("C%d-PKT-LSL:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
+      outer.hartIdSinkNode.bundle, packet_in(144, 128), packet_in(127, 64), packet_in(63, 0)))
+    }
+  }
+
   //===== GuardianCouncil Function: Start ====//
   if (outer.tileParams.hartId == 0) {
     println("#### Jessica #### Generating GHT for the big core, HartID: ", outer.rocketParams.hartId, "...!!!")

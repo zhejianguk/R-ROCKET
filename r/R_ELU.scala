@@ -123,9 +123,10 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
   io.elu_data                := channel_deq_data
   io.elu_status              := ~channel_empty
   */
+  
 
   // Faking ELU data 
-  io.elu_data                := 0.U
+  io.elu_data                := Mux(err_ld | err_st, err_log, 0.U)
   io.elu_status              := 0.U
 
   if (GH_GlobalParams.GH_DEBUG == 1) {

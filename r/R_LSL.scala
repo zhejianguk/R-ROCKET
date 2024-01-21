@@ -120,7 +120,7 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   u_channel_csr.io.deq_ready := csr_channel_deq_ready
   csr_channel_deq_data       := u_channel_csr.io.deq_bits
   csr_channel_empty          := u_channel_csr.io.empty
-  csr_channel_nearfull       := u_channel_csr.io.status_twoslots
+  csr_channel_nearfull       := u_channel_csr.io.status_threeslots
 
 
   csr_channel_enq_valid      := csr_enq_valid

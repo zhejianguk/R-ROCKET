@@ -944,7 +944,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   // io.elu_data := Mux(io.elu_sel.asBool, rsu_slave.io.elu_cp_data, elu.io.elu_data)
   // Faking ELU data
-  io.elu_data := icsl.io.debug_perf_val
+  io.elu_data := Mux(elu.io.elu_data =/= 0, elu.io.elu_data, icsl.io.debug_perf_val)
 
   io.elu_status := Cat(rsu_slave.io.elu_status, elu.io.elu_status)
   elu.io.elu_deq := Mux(!io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)

@@ -111,6 +111,13 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     cdc_channel_enq_valid                       := Mux(((io.cdc_push === 1.U) && (!cdc_channel_full)), 1.U, 0.U)
     cdc_channel_enq_data                        := Mux(((io.cdc_push === 1.U) && (!cdc_channel_full)), io.cdc_data_in, 0.U)
     
+    if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (cdc_channel_enq_valid.asBool) {
+        printf(midas.targetutils.SynthesizePrintf("PKT-I:[Index=%x], [PYL1=%x], [PYL0=%x]. \n", 
+        Cat(cdc_channel_enq_data(143, 128)), cdc_channel_enq_data(127, 64), cdc_channel_enq_data(63, 0)))
+      }
+    }
+
     // To Low_Freq:
     /*
     val cdc_data                                 = RegInit(0.U(params.data_width.W))
@@ -151,5 +158,13 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     io.cdc_data_out                             := cdc_data
     io.cdc_busy                                 := cdc_channel.io.status_threeslots
     io.cdc_empty                                := cdc_channel_empty & (cdc_data === 0.U)
+
+    if (GH_GlobalParams.GH_DEBUG == 1) {
+    when (!io.cdc_slave_busy.asBool && !cdc_channel_empty) {
+        printf(midas.targetutils.SynthesizePrintf("PKT-O:[Index=%x],[PYL1=%x], [PYL0=%x]. \n", 
+        Cat(cdc_flag_reg, cdc_data(143, 128)), cdc_data(127, 64), cdc_data(63, 0)))
+      }
+    }
+
   }
 }
