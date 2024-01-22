@@ -181,19 +181,19 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
-  when ((ptype_fg === 1.U) && (packet_in(144) =/= cdc_flag)) {
-      printf(midas.targetutils.SynthesizePrintf("C%d-PKT-FG:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
-      outer.hartIdSinkNode.bundle, packet_in(144, 128), packet_in(127, 64), packet_in(63, 0)))
-    }
+  val packet_rcu_reg =RegInit(0.U(145.W))
+  val packet_lsl_reg =RegInit(0.U(145.W))
+  packet_rcu_reg := packet_rcu
+  packet_lsl_reg := packet_lsl
 
-  when ((ptype_rcu === 1.U) && (packet_in(144) =/= cdc_flag)) {
+  when ((packet_rcu_reg =/= 0.U)) {
       printf(midas.targetutils.SynthesizePrintf("C%d-PKT-RCU:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
-      outer.hartIdSinkNode.bundle, packet_in(144, 128), packet_in(127, 64), packet_in(63, 0)))
+      outer.hartIdSinkNode.bundle, packet_rcu_reg(144, 128), packet_rcu_reg(127, 64), packet_rcu_reg(63, 0)))
     }
 
-  when ((ptype_lsl === 1.U) && (packet_in(144) =/= cdc_flag)) {
+  when (packet_lsl_reg =/= 0.U) {
       printf(midas.targetutils.SynthesizePrintf("C%d-PKT-LSL:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
-      outer.hartIdSinkNode.bundle, packet_in(144, 128), packet_in(127, 64), packet_in(63, 0)))
+      outer.hartIdSinkNode.bundle, packet_lsl_reg(144, 128), packet_lsl_reg(127, 64), packet_lsl_reg(63, 0)))
     }
   }
 
