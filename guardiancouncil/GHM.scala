@@ -20,7 +20,7 @@ case class GHMParams(
 
 class GHMIO(params: GHMParams) extends Bundle {
   val ghm_packet_in                              = Input(UInt(params.width_GH_packet.W))
-  val ghm_packet_dest                            = Input(UInt((params.number_of_little_cores+1).W))
+  val ghm_packet_dest                            = Input(UInt((params.number_of_little_cores*2).W))
   val ghm_status_in                              = Input(UInt(32.W))
   val ghm_packet_outs                            = Output(Vec(params.number_of_little_cores, UInt(params.width_GH_packet.W)))
   val ghm_status_outs                            = Output(Vec(params.number_of_little_cores, UInt(32.W)))
@@ -55,20 +55,22 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
     val io                                         = IO(new GHMIO(params))
 
     // Adding a register to avoid the critical path
-    val packet_dest                                = WireInit(0.U((params.number_of_little_cores+1).W))
+    val packet_dest                                = WireInit(0.U((params.number_of_little_cores).W))
     val packet_out_wires                           = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(params.width_GH_packet.W))))
     val cdc_busy                                   = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(1.W))))
     val cdc_empty                                  = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(1.W))))
 
     val u_cdc                                      = Seq.fill(params.number_of_little_cores) {Module(new GH_CDCH2LFIFO_HandShake(GH_CDCH2L_Params (0, params.width_GH_packet, 32)))}
     val core_r_arfs                                = RegInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(144.W))))
+    val arfs_dest                                  = RegInit(0.U((params.number_of_little_cores).W))
+
+    packet_dest                                   := io.ghm_packet_dest(params.number_of_little_cores-1, 0)
+    arfs_dest                                     := io.ghm_packet_dest(params.number_of_little_cores+3, params.number_of_little_cores)
+
     for (i <- 0 to params.number_of_little_cores - 1) {
       core_r_arfs(i)                              := io.core_r_arfs_in
-      io.core_r_arfs_c(i)                         := core_r_arfs(i)
+      io.core_r_arfs_c(i)                         := Mux(arfs_dest(i) === 1.U, core_r_arfs(i), 0.U)
     }
-
-
-    packet_dest                                   := io.ghm_packet_dest
 
     // CDC
     for (i <- 0 to params.number_of_little_cores - 1) {      
@@ -122,7 +124,7 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
     ghm_status_delay4_cycle                       := ghm_status_delay3_cycle
 
     val if_filters_empty                           = io.ghm_status_in(31)
-    val if_ghm_empty                               = Mux(((io.ghm_packet_dest === 0.U) && (io.ghm_packet_in === 0.U)), 1.U, 0.U)
+    val if_ghm_empty                               = Mux(((io.ghm_packet_dest(params.number_of_little_cores-1,0) === 0.U) && (io.ghm_packet_in === 0.U)), 1.U, 0.U)
     val if_cdc_empty                               = cdc_empty.reduce(_&_)
     val if_no_inflight_packets                     = if_filters_empty & if_ghm_empty & io.if_agg_free & if_cdc_empty
 
@@ -137,7 +139,7 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
       warning                                     = warning | cdc_busy(i)
     }
 
-    when (io.ghm_packet_dest =/= 0.U) {
+    when (io.ghm_packet_dest(params.number_of_little_cores-1,0) =/= 0.U) {
       debug_gcounter                             := debug_gcounter + 1.U
     }
 

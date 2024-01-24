@@ -111,12 +111,14 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     cdc_channel_enq_valid                       := Mux(((io.cdc_push === 1.U) && (!cdc_channel_full)), 1.U, 0.U)
     cdc_channel_enq_data                        := Mux(((io.cdc_push === 1.U) && (!cdc_channel_full)), io.cdc_data_in, 0.U)
     
+    /*
     if (GH_GlobalParams.GH_DEBUG == 1) {
     when (cdc_channel_enq_valid.asBool) {
         printf(midas.targetutils.SynthesizePrintf("PKT-I:[Index=%x], [PYL1=%x], [PYL0=%x]. \n", 
         Cat(cdc_channel_enq_data(143, 128)), cdc_channel_enq_data(127, 64), cdc_channel_enq_data(63, 0)))
       }
     }
+    */
 
     // To Low_Freq:
     /*

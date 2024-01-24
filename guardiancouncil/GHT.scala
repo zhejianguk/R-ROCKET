@@ -65,6 +65,9 @@ class GHT_IO (params: GHTParams) extends Bundle {
   val gtimer_reset                              = Input(UInt(1.W))
   val use_fi_mode                               = Input(UInt(1.W))
   val if_correct_process                        = Input(UInt(1.W))
+  
+  val inst_index_arfs                           = Input(UInt(8.W))
+  val arfs_dest                                 = Output(UInt(8.W))
 }
 
 trait HasGHT_IO extends BaseModule {
@@ -180,10 +183,24 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   
   // execution path
   val inst_c                                     = WireInit(VecInit(Seq.fill(params.totalnumber_of_ses)(0.U(1.W))))
+  val inst_arfs                                  = WireInit(VecInit(Seq.fill(params.totalnumber_of_ses)(0.U(1.W))))
+
   u_ght_mapper.io.inst_index                    := inst_index
   for (i <- 0 to params.totalnumber_of_ses - 1) {
     inst_c(i)                                   := u_ght_mapper.io.inst_c(i)
   }
+
+  val u_ght_mapper_arfs                          = Module (new GHT_MAPPER(GHT_MAPPER_Params(params.totaltypes_of_insts, params.totalnumber_of_ses)))
+  // configuration path
+  u_ght_mapper_arfs.io.ght_mp_cfg_in            := ght_cfg_in_mp_filter
+  u_ght_mapper_arfs.io.ght_mp_cfg_valid         := ght_cfg_valid_mp_filter
+  
+  // execution path
+  u_ght_mapper_arfs.io.inst_index               := io.inst_index_arfs
+  for (i <- 0 to params.totalnumber_of_ses - 1) {
+    inst_arfs(i)                                := u_ght_mapper_arfs.io.inst_c(i)
+  }
+
 
 
 
@@ -191,6 +208,8 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   // Scheduler Engines
   //==========================================================
   val u_ses = Seq.fill(params.totalnumber_of_ses) {Module(new GHT_SE(GHT_SE_Params(params.totalnumber_of_checkers))).io}
+  val u_ses_arfs = Seq.fill(params.totalnumber_of_ses) {Module(new GHT_SE(GHT_SE_Params(params.totalnumber_of_checkers))).io}
+
 
   // configuration path
   val ght_cfg_in_ses_filter                      = WireInit(0.U(32.W))
@@ -204,19 +223,32 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
     when ((ght_cfg_valid_ses_filter === 1.U) && (ght_cfg_seid_ses_filter === i.U)){
       u_ses(i).ght_se_cfg_in                    := ght_cfg_in_ses_filter
       u_ses(i).ght_se_cfg_valid                 := ght_cfg_valid_ses_filter
+
+      u_ses_arfs(i).ght_se_cfg_in               := ght_cfg_in_ses_filter
+      u_ses_arfs(i).ght_se_cfg_valid            := ght_cfg_valid_ses_filter
     } otherwise {
       u_ses(i).ght_se_cfg_in                    := 0.U
       u_ses(i).ght_se_cfg_valid                 := 0.U
+
+      u_ses_arfs(i).ght_se_cfg_in               := 0.U
+      u_ses_arfs(i).ght_se_cfg_valid            := 0.U
     }
   }
 
   // execution path
   val core_d                                     = WireInit(VecInit(Seq.fill(params.totalnumber_of_ses)(0.U(params.totalnumber_of_checkers.W))))
   val core_d_all                                 = WireInit(0.U(params.totalnumber_of_checkers.W))
+
+  val core_d_arfs                                = WireInit(VecInit(Seq.fill(params.totalnumber_of_ses)(0.U(params.totalnumber_of_checkers.W))))
+  val core_d_all_arfs                            = WireInit(0.U(params.totalnumber_of_checkers.W))
   for (i <- 0 to params.totalnumber_of_ses - 1) {
     core_d(i)                                   := u_ses(i).core_d
     u_ses(i).inst_c                             := inst_c(i)
     u_ses(i).core_na                            := io.core_na
+
+    core_d_arfs(i)                              := u_ses_arfs(i).core_d
+    u_ses_arfs(i).inst_c                        := inst_arfs(i)
+    u_ses_arfs(i).core_na                       := io.core_na
   }
 
   val u_core_d_orgate                            = Module (new GH_ORGATE(ORGATEParams (params.totalnumber_of_checkers, params.totalnumber_of_ses)))
@@ -224,6 +256,8 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
     u_core_d_orgate.io.in(i)                    := core_d(i)
   }
   core_d_all                                    := u_core_d_orgate.io.out
+  core_d_all_arfs                               := core_d_arfs.reduce(_|_)
+  io.arfs_dest                                  := core_d_all_arfs
 
   val sch_hangs                                  = WireInit(VecInit(Seq.fill(params.totalnumber_of_ses)(0.U(1.W))))
   for (i <- 0 to params.totalnumber_of_ses - 1) {

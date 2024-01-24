@@ -172,7 +172,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val arfs_in = outer.core_r_arfs_c_SKNode.bundle
   val arfs_index = arfs_in (143, 136)
   val ptype_rcu = Mux(s_or_r.asBool && (arfs_index(2,0) === 7.U), 1.U, 0.U)
-  val arfs_if_CPS = Mux(ptype_rcu.asBool && (packet_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
+  val arfs_if_CPS = Mux(ptype_rcu.asBool && (arfs_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
 
   val packet_fg = Mux((ptype_fg === 1.U) && (packet_in(144) =/= cdc_flag), packet_in, 0.U)
   val packet_rcu = Mux((ptype_rcu === 1.U), arfs_in, 0.U)
