@@ -228,6 +228,7 @@ trait HasTileNotificationSinks { this: LazyModule =>
 trait HasGHnodes extends InstantiatesTiles { this: BaseSubsystem =>
   val tile_ghm_agg_core_id_EPNode                = BundleBridgeEphemeralNode[UInt]()
   val tile_ght_packet_out_EPNode                 = BundleBridgeEphemeralNode[UInt]()
+  val tile_core_r_arfs_EPNode                    = BundleBridgeEphemeralNode[UInt]()
   val tile_ic_counter_out_EPNode                 = BundleBridgeEphemeralNode[UInt]()
   val tile_ght_packet_dest_EPNode                = BundleBridgeEphemeralNode[UInt]()
   val tile_ght_status_out_EPNode                 = BundleBridgeEphemeralNode[UInt]()
@@ -235,6 +236,7 @@ trait HasGHnodes extends InstantiatesTiles { this: BaseSubsystem =>
   var tile_ghe_event_out_EPNodes                 = Seq[BundleBridgeEphemeralNode[UInt]]()
   var tile_ghe_revent_out_EPNodes                = Seq[BundleBridgeEphemeralNode[UInt]]()
   var tile_ghe_packet_in_EPNodes                 = Seq[BundleBridgeEphemeralNode[UInt]]()
+  var core_r_arfs_c_EPNodes                      = Seq[BundleBridgeEphemeralNode[UInt]]()
   var tile_icsl_counter_in_EPNodes               = Seq[BundleBridgeEphemeralNode[UInt]]()
   var tile_clear_ic_status_out_EPNodes           = Seq[BundleBridgeEphemeralNode[UInt]]()
   var tile_ghe_status_in_EPNodes                 = Seq[BundleBridgeEphemeralNode[UInt]]()
@@ -432,6 +434,7 @@ trait CanAttachTile {
     if (tileParams.hartId == 0) {
       context.tile_ic_counter_out_EPNode  := domain.tile.ic_counter_SRNode
       context.tile_ght_packet_out_EPNode  := domain.tile.ght_packet_out_SRNode
+      context.tile_core_r_arfs_EPNode     := domain.tile.core_r_arfs_SRNode
       context.tile_ghm_agg_core_id_EPNode := domain.tile.ghm_agg_core_id_out_SRNode
       context.tile_ght_packet_dest_EPNode := domain.tile.ght_packet_dest_SRNode
       context.tile_ght_status_out_EPNode  := domain.tile.ght_status_out_SRNode
@@ -448,6 +451,7 @@ trait CanAttachTile {
       val useless_bigcore_comp_SRNode      = BundleBridgeSource[UInt](Some(() => UInt(3.W)))
       val useless_debug_bp_SRNode          = BundleBridgeSource[UInt](Some(() => UInt(2.W)))
       val useless_packet_SKNode            = BundleBridgeSink[UInt](Some(() => UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W)))
+      val useless_core_r_arfs_SKNode       = BundleBridgeSink[UInt](Some(() => UInt(144.W)))
       val useless_agg_core_id_SKNode       = BundleBridgeSink[UInt](Some(() => UInt(16.W)))
       val useless_packet_dest_SKNode       = BundleBridgeSink[UInt](Some(() => UInt(32.W)))
       val useless_status_SKNode            = BundleBridgeSink[UInt](Some(() => UInt(32.W)))
@@ -456,6 +460,7 @@ trait CanAttachTile {
 
       useless_bigcore_ic_counter_SRNode   := domain.tile.ic_counter_SRNode
       useless_packet_SKNode               := domain.tile.ght_packet_out_SRNode
+      useless_core_r_arfs_SKNode          := domain.tile.core_r_arfs_SRNode
       useless_agg_core_id_SKNode          := domain.tile.ghm_agg_core_id_out_SRNode
       useless_packet_dest_SKNode          := domain.tile.ght_packet_dest_SRNode
       useless_status_SKNode               := domain.tile.ght_status_out_SRNode
@@ -471,6 +476,11 @@ trait CanAttachTile {
     val tile_ghe_packet_in_EPNode = BundleBridgeEphemeralNode[UInt]()
     context.tile_ghe_packet_in_EPNodes = context.tile_ghe_packet_in_EPNodes :+ tile_ghe_packet_in_EPNode
     domain.tile.ghe_packet_in_SKNode := tile_ghe_packet_in_EPNode
+
+    val core_r_arfs_c_EPNode = BundleBridgeEphemeralNode[UInt]()
+    context.core_r_arfs_c_EPNodes = context.core_r_arfs_c_EPNodes :+ core_r_arfs_c_EPNode
+    domain.tile.core_r_arfs_c_SKNode := core_r_arfs_c_EPNode
+
 
     val tile_icsl_counter_in_EPNode = BundleBridgeEphemeralNode[UInt]()
     context.tile_icsl_counter_in_EPNodes = context.tile_icsl_counter_in_EPNodes :+ tile_icsl_counter_in_EPNode

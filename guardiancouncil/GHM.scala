@@ -37,6 +37,8 @@ class GHMIO(params: GHMParams) extends Bundle {
 
   val debug_gcounter                             = Output(UInt(64.W))
   val if_agg_free                                = Input(UInt(1.W))
+  val core_r_arfs_in                             = Input(UInt(144.W))
+  val core_r_arfs_c                              = Output(Vec(params.number_of_little_cores, UInt(144.W)))
 }
 
 trait HasGHMIO extends BaseModule {
@@ -59,6 +61,11 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
     val cdc_empty                                  = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(1.W))))
 
     val u_cdc                                      = Seq.fill(params.number_of_little_cores) {Module(new GH_CDCH2LFIFO_HandShake(GH_CDCH2L_Params (0, params.width_GH_packet, 32)))}
+    val core_r_arfs                                = RegInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(144.W))))
+    for (i <- 0 to params.number_of_little_cores - 1) {
+      core_r_arfs(i)                              := io.core_r_arfs_in
+      io.core_r_arfs_c(i)                         := core_r_arfs(i)
+    }
 
 
     packet_dest                                   := io.ghm_packet_dest
@@ -164,12 +171,16 @@ object GHMCore {
     val bigcore_comp_SRNode                        = BundleBridgeSource[UInt](Some(() => UInt(3.W)))
     val debug_bp_SRNode                            = BundleBridgeSource[UInt](Some(() => UInt(2.W)))
     val ghm_ght_packet_in_SKNode                   = BundleBridgeSink[UInt](Some(() => UInt((params.width_GH_packet).W)))
+    val core_r_arfs_in_SKNode                      = BundleBridgeSink[UInt](Some(() => UInt(144.W)))
+
     val ic_counter_SKNode                          = BundleBridgeSink[UInt](Some(() => UInt((16*GH_GlobalParams.GH_NUM_CORES).W)))
     val ghm_ght_packet_dest_SKNode                 = BundleBridgeSink[UInt](Some(() => UInt(32.W)))
 
     val ghm_ght_status_in_SKNode                   = BundleBridgeSink[UInt](Some(() => UInt(32.W)))
 
     var ghm_ghe_packet_out_SRNodes                 = Seq[BundleBridgeSource[UInt]]()
+    var core_r_arfs_c_SRNodes                      = Seq[BundleBridgeSource[UInt]]()
+
     var icsl_out_SRNodes                           = Seq[BundleBridgeSource[UInt]]()
     var ghm_ghe_status_out_SRNodes                 = Seq[BundleBridgeSource[UInt]]()
     var ghm_ghe_event_in_SKNodes                   = Seq[BundleBridgeSink[UInt]]()
@@ -180,6 +191,7 @@ object GHMCore {
 
     val if_agg_free_SKNode                         = BundleBridgeSink[UInt](Some(() => UInt(1.W)))
 
+    core_r_arfs_in_SKNode                         := subsystem.tile_core_r_arfs_EPNode
     ghm_ght_packet_in_SKNode                      := subsystem.tile_ght_packet_out_EPNode
     ic_counter_SKNode                             := subsystem.tile_ic_counter_out_EPNode
     ghm_ght_packet_dest_SKNode                    := subsystem.tile_ght_packet_dest_EPNode
@@ -190,6 +202,10 @@ object GHMCore {
       val ghm_ghe_packet_out_SRNode                = BundleBridgeSource[UInt]()
       ghm_ghe_packet_out_SRNodes                   = ghm_ghe_packet_out_SRNodes :+ ghm_ghe_packet_out_SRNode
       subsystem.tile_ghe_packet_in_EPNodes(i)     := ghm_ghe_packet_out_SRNodes(i)
+
+      val core_r_arfs_c_SRNode                     = BundleBridgeSource[UInt]()
+      core_r_arfs_c_SRNodes                        = core_r_arfs_c_SRNodes :+ core_r_arfs_c_SRNode
+      subsystem.core_r_arfs_c_EPNodes(i)          := core_r_arfs_c_SRNodes(i)
 
       val icsl_out_SRNode                          = BundleBridgeSource[UInt]()
       icsl_out_SRNodes                             = icsl_out_SRNodes :+ icsl_out_SRNode
@@ -233,6 +249,7 @@ object GHMCore {
     InModuleBody {
       ghm.module.clock                            := bus.module.clock
       ghm.module.io.ghm_packet_in                 := ghm_ght_packet_in_SKNode.bundle
+      ghm.module.io.core_r_arfs_in                := core_r_arfs_in_SKNode.bundle
       ghm.module.io.ghm_packet_dest               := ghm_ght_packet_dest_SKNode.bundle
       ghm.module.io.ghm_status_in                 := ghm_ght_status_in_SKNode.bundle
       ghm.module.io.if_agg_free                   := if_agg_free_SKNode.bundle 
@@ -242,12 +259,14 @@ object GHMCore {
         if (i == 0) { // The big core
           // GHE is not connected to the big core
           ghm_ghe_packet_out_SRNodes(i).bundle    := 0.U 
+          core_r_arfs_c_SRNodes(i).bundle         := 0.U
           ghm_ghe_status_out_SRNodes(i).bundle    := 0.U
           clear_ic_status_tomainSRNodes(i).bundle := ghm.module.io.clear_ic_status_tomain
           icsl_naSRNodes(i).bundle                := ghm.module.io.icsl_na
           icsl_out_SRNodes(i).bundle              := 0.U
         } else {// -1 big core
           ghm_ghe_packet_out_SRNodes(i).bundle    := ghm.module.io.ghm_packet_outs(i-1)
+          core_r_arfs_c_SRNodes(i).bundle         := ghm.module.io.core_r_arfs_c(i-1)
           ghm_ghe_status_out_SRNodes(i).bundle    := ghm.module.io.ghm_status_outs(i-1)
           clear_ic_status_tomainSRNodes(i).bundle := 0.U
           icsl_naSRNodes(i).bundle                := 0.U
