@@ -156,7 +156,8 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val cdc_flag = RegInit(0.U(1.W))
   val cdc_ack =RegInit(1.U(1.W))
 
-  val packet_in = outer.ghe_packet_in_SKNode.bundle
+  val packet_in_superset = outer.ghe_packet_in_SKNode.bundle
+  val packet_in = packet_in_superset(143, 0)
   val packet_index = packet_in (143, 136)
   val ptype_fg = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 0.U)), 1.U, 0.U)
   // val ptype_lsl = Mux(((packet_index(2) === 0.U) && (packet_index(1,0) =/= 0.U) && (s_or_r === 1.U)), 1.U, 0.U)
@@ -166,39 +167,24 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   val debug_perf_ctrl = Wire(0.U(4.W))
   val record_and_store = Wire(0.U(2.W))
 
-  cdc_flag := Mux((ptype_fg.asBool || ptype_lsl.asBool) && (packet_in(144) =/= cdc_flag), packet_in(144), cdc_flag)
-  cdc_ack := Mux((ptype_fg.asBool || ptype_lsl.asBool) && (packet_in(144) =/= cdc_flag), cdc_ack + 1.U, cdc_ack)
+  cdc_flag := Mux((ptype_fg.asBool || ptype_lsl.asBool) && (packet_in_superset(288) =/= cdc_flag), packet_in_superset(288), cdc_flag)
+  cdc_ack := Mux((ptype_fg.asBool || ptype_lsl.asBool) && (packet_in_superset(288) =/= cdc_flag), cdc_ack + 1.U, cdc_ack)
 
   val arfs_in = outer.core_r_arfs_c_SKNode.bundle
   val arfs_index = arfs_in (143, 136)
   val ptype_rcu = Mux(s_or_r.asBool && (arfs_index(2,0) === 7.U), 1.U, 0.U)
   val arfs_if_CPS = Mux(ptype_rcu.asBool && (arfs_index (6, 3) === outer.rocketParams.hartId.U), 1.U, 0.U)
 
-  val packet_fg = Mux((ptype_fg === 1.U) && (packet_in(144) =/= cdc_flag), packet_in, 0.U)
+  val packet_fg = Mux((ptype_fg === 1.U) && (packet_in_superset(288) =/= cdc_flag), packet_in, 0.U)
   val packet_rcu = Mux((ptype_rcu === 1.U), arfs_in, 0.U)
-  val packet_lsl = Mux((ptype_lsl === 1.U) && (packet_in(144) =/= cdc_flag), packet_in, 0.U)  
+  val packet_lsl = Mux((ptype_lsl === 1.U) && (packet_in_superset(288) =/= cdc_flag), packet_in, 0.U)
+
+  val packet_in1 = packet_in_superset(287, 144)
+  val packet_index1 = packet_in1(143, 136)
+  val ptype_lsl1 = Mux((s_or_r.asBool && (packet_index1(2,0) =/= 7.U) && (packet_index1(2,0) =/= 0.U)), 1.U, 0.U)
+  val packet_lsl1 = Mux((ptype_lsl1 === 1.U) && (packet_in_superset(288) =/= cdc_flag), packet_in1, 0.U)
+
   val arf_copy_bridge = Module(new GH_Bridge(GH_BridgeParams(1)))
-  
-
-  /*
-  if (GH_GlobalParams.GH_DEBUG == 1) {
-  val packet_rcu_reg =RegInit(0.U(145.W))
-  val packet_lsl_reg =RegInit(0.U(145.W))
-  packet_rcu_reg := packet_rcu
-  packet_lsl_reg := packet_lsl
-
-  when ((packet_rcu_reg =/= 0.U)) {
-      printf(midas.targetutils.SynthesizePrintf("C%d-PKT-RCU:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
-      outer.hartIdSinkNode.bundle, packet_rcu_reg(144, 128), packet_rcu_reg(127, 64), packet_rcu_reg(63, 0)))
-    }
-
-  when (packet_lsl_reg =/= 0.U) {
-      printf(midas.targetutils.SynthesizePrintf("C%d-PKT-LSL:[Index=%x],[PYL1=%x],[PYL0=%x]. \n", 
-      outer.hartIdSinkNode.bundle, packet_lsl_reg(144, 128), packet_lsl_reg(127, 64), packet_lsl_reg(63, 0)))
-    }
-  }
-  */
-
   //===== GuardianCouncil Function: Start ====//
   if (outer.tileParams.hartId == 0) {
     println("#### Jessica #### Generating GHT for the big core, HartID: ", outer.rocketParams.hartId, "...!!!")
@@ -235,6 +221,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     core.io.arfs_if_CPS := arfs_if_CPS
     core.io.packet_arfs := packet_rcu
     core.io.packet_lsl := packet_lsl
+    core.io.packet_lsl1 := packet_lsl1
     core.io.arf_copy_in := arf_copy_bridge.io.out
     core.io.s_or_r := s_or_r
     core.io.if_correct_process := if_correct_process_bridge.io.out
@@ -296,7 +283,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     core.io.rocc.busy <> (cmdRouter.get.io.busy || outer.roccs.map(_.module.io.busy).reduce(_ || _))
     core.io.rocc.interrupt := outer.roccs.map(_.module.io.interrupt).reduce(_ || _)
     //===== GuardianCouncil Function: Start ====//
-    cmdRouter.get.io.ghe_packet_in := ( packet_fg | (outer.agg_packet_in_SKNode.bundle))
+    cmdRouter.get.io.ghe_packet_in := 0.U
     cmdRouter.get.io.ghe_status_in := outer.ghe_status_in_SKNode.bundle
     ghe_bridge.io.in := cmdRouter.get.io.ghe_event_out
     ght_bridge.io.in := cmdRouter.get.io.ght_mask_out

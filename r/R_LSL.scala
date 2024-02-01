@@ -17,7 +17,16 @@ class R_LSLIO(params: R_LSLParams) extends Bundle {
   val m_ldst_addr = Input(UInt((params.xLen).W))
   val m_csr_valid = Input(UInt(1.W))
   val m_csr_data = Input(UInt((params.xLen).W))
+
+  val m_ld_valid1 = Input(UInt(1.W))
+  val m_st_valid1 = Input(UInt(1.W))
+  val m_ldst_data1 = Input(UInt((params.xLen).W))
+  val m_ldst_addr1 = Input(UInt((params.xLen).W))
+  val m_csr_valid1 = Input(UInt(1.W))
+  val m_csr_data1 = Input(UInt((params.xLen).W))
+
   val cdc_ready = Output(UInt(1.W))
+
 
   val req_ready = Output(UInt(1.W))
   val req_valid = Input(UInt(1.W))
@@ -51,32 +60,55 @@ trait HasR_RLSLIO extends BaseModule {
 
 class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   val fifowidth               = 2*params.xLen + 2 // extra two bits added to indicate inst type
-  val u_channel               = Module (new GH_MemFIFO(FIFOParams(fifowidth, params.nEntries)))
+  val u_channel               = Seq.fill(2) {Module(new GH_MemFIFO(FIFOParams (fifowidth, params.nEntries)))}
 
+
+  val has_data                = RegInit(false.B)
+  val scala_ptr               = RegInit(0.U(1.W))
+  val scala_num_reqs          = RegInit(0.U(2.W))
+  /* Enqueue */
+  val enq_data                = RegInit(0.U(fifowidth.W))
   val channel_enq_valid       = WireInit(false.B)
   val channel_enq_data        = WireInit(0.U(fifowidth.W))
   val channel_deq_ready       = WireInit(false.B)
   val channel_deq_data        = WireInit(0.U(fifowidth.W))
   val channel_empty           = WireInit(true.B)
-  val channel_full            = WireInit(false.B)
-  val channel_nearfull        = WireInit(0.U(1.W))
 
-  u_channel.io.enq_valid     := channel_enq_valid
-  u_channel.io.enq_bits      := channel_enq_data
-  u_channel.io.deq_ready     := channel_deq_ready
-  channel_deq_data           := u_channel.io.deq_bits
-  channel_empty              := u_channel.io.empty
-  channel_full               := u_channel.io.full
-  channel_nearfull           := u_channel.io.status_threeslots
+  val enq_data1               = RegInit(0.U(fifowidth.W))
+  val channel_enq_valid1      = WireInit(false.B)
+  val channel_enq_data1       = WireInit(0.U(fifowidth.W))
+  val channel_deq_ready1      = WireInit(false.B)
+  val channel_deq_data1       = WireInit(0.U(fifowidth.W))
+  val channel_empty1          = WireInit(true.B)
 
-  val enq_valid               = RegInit(false.B)
-  val enq_data                = RegInit(0.U(fifowidth.W))
-
-  enq_valid                  := (io.m_st_valid === 1.U) || (io.m_ld_valid === 1.U)
+  has_data                   := io.m_st_valid.asBool || io.m_ld_valid.asBool || io.m_st_valid1.asBool || io.m_ld_valid1.asBool
+  scala_ptr                  := Mux(has_data && (scala_num_reqs === 1.U), scala_ptr + 1.U, scala_ptr)
+  scala_num_reqs             := Mux(io.m_st_valid.asBool || io.m_ld_valid.asBool || io.m_st_valid1.asBool || io.m_ld_valid1.asBool, 
+                                Mux(((io.m_st_valid.asBool || io.m_ld_valid.asBool)) && (io.m_st_valid1.asBool || io.m_ld_valid1.asBool), 2.U, 1.U), 0.U)
+  
   enq_data                   := Cat(io.m_st_valid, io.m_ld_valid, io.m_ldst_data, io.m_ldst_addr)
-  channel_enq_valid          := Mux(enq_valid, 1.U, 0.U)
-  channel_enq_data           := Mux(enq_valid, enq_data, 0.U)
+  enq_data1                  := Cat(io.m_st_valid1, io.m_ld_valid1, io.m_ldst_data1, io.m_ldst_addr1)
 
+  u_channel(0).io.enq_valid  := channel_enq_valid
+  u_channel(0).io.enq_bits   := channel_enq_data
+  u_channel(0).io.deq_ready  := channel_deq_ready
+  channel_deq_data           := u_channel(0).io.deq_bits
+  channel_empty              := u_channel(0).io.empty
+
+  u_channel(1).io.enq_valid  := channel_enq_valid1
+  u_channel(1).io.enq_bits   := channel_enq_data1
+  u_channel(1).io.deq_ready  := channel_deq_ready1
+  channel_deq_data1          := u_channel(1).io.deq_bits
+  channel_empty1             := u_channel(1).io.empty
+
+  channel_enq_valid          := Mux(has_data, Mux(scala_num_reqs === 2.U, 1.U, Mux(scala_ptr === 0.U, 1.U, 0.U)), 0.U)
+  channel_enq_valid1         := Mux(has_data, Mux(scala_num_reqs === 2.U, 1.U, Mux(scala_ptr === 1.U, 1.U, 0.U)), 0.U)
+  channel_enq_data           := Mux(has_data, Mux(scala_num_reqs === 2.U, Mux(scala_ptr === 0.U, enq_data, enq_data1), Mux(scala_ptr === 0.U, enq_data, 0.U)), 0.U)
+  channel_enq_data1          := Mux(has_data, Mux(scala_num_reqs === 2.U, Mux(scala_ptr === 0.U, enq_data1, enq_data), Mux(scala_ptr === 0.U, 0.U, enq_data)), 0.U)
+
+
+  val scala_ptr_core          = RegInit(0.U(1.W))
+  /* Dequeue */
   val req_valid_reg           = RegInit(0.U(1.W))
   val resp_valid_reg          = RegInit(0.U(1.W))
   val resp_kill_reg           = RegInit(0.U(1.W))
@@ -85,24 +117,35 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   val req_size_reg            = RegInit(0.U(2.W))
   resp_kill_reg              := io.req_kill // already in the replay procedure....
 
-  channel_deq_ready          := io.req_valid & !channel_empty & !io.req_kill
+  val if_lsl_empty            = Mux(scala_ptr_core === 0.U, channel_empty, channel_empty1)
+  scala_ptr_core             := Mux((io.req_valid & !if_lsl_empty & !io.req_kill).asBool, scala_ptr_core + 1.U, scala_ptr_core)
   req_valid_reg              := io.req_valid
-  resp_valid_reg             := io.req_valid & !channel_empty & !io.req_kill
+  resp_valid_reg             := io.req_valid & !if_lsl_empty & !io.req_kill
   resp_tag                   := io.req_tag
   cmd                        := io.req_cmd
   req_size_reg               := io.req_size
 
-  io.req_ready               := !channel_empty
+  io.req_ready               := !if_lsl_empty
   io.resp_valid              := resp_valid_reg
   io.resp_tag                := resp_tag
   // Revisit
   io.resp_size               := Mux((resp_valid_reg === 1.U), req_size_reg, 0.U)
-  io.resp_data               := Mux((resp_valid_reg === 1.U), channel_deq_data(127, 64), 0.U)
-  io.resp_addr               := Mux((resp_valid_reg === 1.U), channel_deq_data(63, 0), 0.U)
+  io.resp_data               := Mux((resp_valid_reg === 1.U), Mux(scala_ptr_core === 0.U, channel_deq_data1(127, 64), channel_deq_data(127, 64)), 0.U)
+  io.resp_addr               := Mux((resp_valid_reg === 1.U), Mux(scala_ptr_core === 0.U, channel_deq_data1(63, 0), channel_deq_data(63, 0)), 0.U)
   io.resp_has_data           := Mux((resp_valid_reg === 1.U) && (cmd(0) === 1.U), 1.U, 0.U)
   io.resp_replay             := req_valid_reg & !resp_valid_reg & !resp_kill_reg
 
-  val u_channel_csr           = Module (new GH_FIFO(FIFOParams(params.xLen, 15))) // These are rarely used
+  channel_deq_ready          := io.req_valid & !if_lsl_empty & !io.req_kill & (scala_ptr_core === 0.U)
+  channel_deq_ready1         := io.req_valid & !if_lsl_empty & !io.req_kill & (scala_ptr_core === 1.U)
+
+
+  val has_data_csr            = RegInit(false.B)
+  val scala_ptr_csr           = RegInit(0.U(1.W))
+  val scala_num_reqs_csr      = RegInit(0.U(2.W))
+
+  val u_channel_csr           = Seq.fill(2) {Module(new GH_FIFO(FIFOParams (params.xLen, 8)))}
+  
+  val csr_enq_data            = RegInit(0.U(fifowidth.W))
   val csr_channel_enq_valid   = WireInit(false.B)
   val csr_channel_enq_data    = WireInit(0.U(params.xLen.W))
   val csr_channel_deq_ready   = WireInit(false.B)
@@ -110,28 +153,56 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   val csr_channel_empty       = WireInit(true.B)
   val csr_channel_nearfull    = WireInit(0.U(1.W))
 
-  val csr_enq_valid           = RegInit(false.B)
-  val csr_enq_data            = RegInit(0.U(fifowidth.W))
-  csr_enq_valid              := io.m_csr_valid
+  val csr_enq_data1           = RegInit(0.U(fifowidth.W))
+  val csr_channel_enq_valid1  = WireInit(false.B)
+  val csr_channel_enq_data1   = WireInit(0.U(params.xLen.W))
+  val csr_channel_deq_ready1  = WireInit(false.B)
+  val csr_channel_deq_data1   = WireInit(0.U(params.xLen.W))
+  val csr_channel_empty1      = WireInit(true.B)
+  val csr_channel_nearfull1   = WireInit(0.U(1.W))
+
+  has_data_csr               := io.m_csr_valid | io.m_csr_valid1
+  scala_ptr_csr              := Mux(has_data_csr && (scala_num_reqs_csr === 1.U), scala_ptr_csr + 1.U, scala_ptr_csr)
+  scala_num_reqs_csr         := Mux(io.m_csr_valid.asBool || io.m_csr_valid1.asBool, 
+                                Mux((io.m_csr_valid.asBool && io.m_csr_valid1.asBool), 2.U, 1.U), 0.U)
+
   csr_enq_data               := Mux(io.m_csr_valid.asBool, io.m_csr_data, 0.U)
+  csr_enq_data1              := Mux(io.m_csr_valid1.asBool, io.m_csr_data1, 0.U)
 
-  u_channel_csr.io.enq_valid := csr_channel_enq_valid
-  u_channel_csr.io.enq_bits  := csr_channel_enq_data
-  u_channel_csr.io.deq_ready := csr_channel_deq_ready
-  csr_channel_deq_data       := u_channel_csr.io.deq_bits
-  csr_channel_empty          := u_channel_csr.io.empty
-  csr_channel_nearfull       := u_channel_csr.io.status_threeslots
+  u_channel_csr(0).io.enq_valid := csr_channel_enq_valid
+  u_channel_csr(0).io.enq_bits  := csr_channel_enq_data
+  u_channel_csr(0).io.deq_ready := csr_channel_deq_ready
+  csr_channel_deq_data       := u_channel_csr(0).io.deq_bits
+  csr_channel_empty          := u_channel_csr(0).io.empty
+  csr_channel_nearfull       := u_channel_csr(0).io.status_threeslots
 
+  u_channel_csr(1).io.enq_valid := csr_channel_enq_valid1
+  u_channel_csr(1).io.enq_bits  := csr_channel_enq_data1
+  u_channel_csr(1).io.deq_ready := csr_channel_deq_ready1
+  csr_channel_deq_data1      := u_channel_csr(1).io.deq_bits
+  csr_channel_empty1         := u_channel_csr(1).io.empty
+  csr_channel_nearfull1      := u_channel_csr(1).io.status_threeslots
 
-  csr_channel_enq_valid      := csr_enq_valid
-  csr_channel_enq_data       := csr_enq_data
-  csr_channel_deq_ready      := (io.req_valid_csr === 1.U) && !csr_channel_empty
-  io.resp_data_csr           := csr_channel_deq_data
+  csr_channel_enq_valid      := Mux(has_data_csr, Mux(scala_num_reqs_csr === 2.U, 1.U, Mux(scala_ptr_csr === 0.U, 1.U, 0.U)), 0.U)
+  csr_channel_enq_valid1     := Mux(has_data_csr, Mux(scala_num_reqs_csr === 2.U, 1.U, Mux(scala_ptr_csr === 1.U, 1.U, 0.U)), 0.U)
+
+  csr_channel_enq_data       := Mux(has_data_csr, Mux(scala_num_reqs_csr === 2.U, Mux(scala_ptr_csr === 0.U, csr_enq_data, csr_enq_data1), Mux(scala_ptr_csr === 0.U, csr_enq_data, 0.U)), 0.U)
+  csr_channel_enq_data1      := Mux(has_data_csr, Mux(scala_num_reqs_csr === 2.U, Mux(scala_ptr_csr === 0.U, csr_enq_data1, csr_enq_data), Mux(scala_ptr_csr === 0.U, 0.U, csr_enq_data)), 0.U)
+
+  val scala_ptr_core_csr      = RegInit(0.U(1.W))
+  val if_csr_empty            = Mux(scala_ptr_core_csr === 0.U, csr_channel_empty, csr_channel_empty1)
+
+  csr_channel_deq_ready      := (io.req_valid_csr === 1.U) && !if_csr_empty && (scala_ptr_core_csr === 0.U)
+  csr_channel_deq_ready1     := (io.req_valid_csr === 1.U) && !if_csr_empty && (scala_ptr_core_csr === 1.U)
+
+  io.resp_data_csr           := Mux((scala_ptr_core_csr === 0.U), csr_channel_deq_data, csr_channel_deq_data1)
   // io.resp_replay_csr         := (io.req_valid_csr === 1.U) && csr_channel_empty
+  scala_ptr_core_csr         := Mux((io.req_valid_csr === 1.U) && !if_csr_empty, scala_ptr_core_csr + 1.U, scala_ptr_core_csr)
 
-  io.cdc_ready               := enq_valid || csr_enq_valid
-  io.near_full               := u_channel.io.status_fiveslots | csr_channel_nearfull
-  io.req_ready_csr           := !csr_channel_empty
-  io.if_empty                := csr_channel_empty & channel_empty
-  io.lsl_highwatermark       := u_channel.io.high_watermark | u_channel_csr.io.status_fiveslots
+
+  io.cdc_ready               := has_data || has_data_csr
+  io.near_full               := u_channel(0).io.status_fiveslots | u_channel(1).io.status_fiveslots | csr_channel_nearfull | csr_channel_nearfull1
+  io.req_ready_csr           := !if_csr_empty
+  io.if_empty                := csr_channel_empty & csr_channel_empty1 & channel_empty & channel_empty1
+  io.lsl_highwatermark       := u_channel(0).io.high_watermark | u_channel(1).io.high_watermark | u_channel_csr(0).io.status_fiveslots | u_channel_csr(1).io.status_fiveslots
 }

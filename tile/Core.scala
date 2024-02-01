@@ -171,6 +171,7 @@ trait HasCoreIO extends HasTileParameters {
 
     val packet_arfs = UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W).asInput
     val packet_lsl = UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W).asInput
+    val packet_lsl1 = UInt(GH_GlobalParams.GH_WIDITH_PACKETS.W).asInput
 
     val packet_cdc_ready = UInt(1.W).asOutput
     val arf_copy_in = UInt(1.W).asInput

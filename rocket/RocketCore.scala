@@ -905,6 +905,13 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   lsl.io.m_ldst_data := io.packet_lsl(127,64)
   lsl.io.m_ldst_addr := io.packet_lsl(63,0)
 
+  lsl.io.m_st_valid1 := Mux((io.packet_lsl1(138, 136) === 2.U), 1.U, 0.U)
+  lsl.io.m_ld_valid1 := Mux((io.packet_lsl1(138, 136) === 1.U), 1.U, 0.U)
+  lsl.io.m_csr_valid1 := Mux((io.packet_lsl1(138, 136) === 3.U), 1.U, 0.U)
+  lsl.io.m_csr_data1 := io.packet_lsl1(65, 2)
+  lsl.io.m_ldst_data1 := io.packet_lsl1(127,64)
+  lsl.io.m_ldst_addr1 := io.packet_lsl1(63,0)
+
   lsl_req_ready := lsl.io.req_ready
   lsl.io.req_valid := lsl_req_valid
   lsl.io.req_addr := lsl_req_addr

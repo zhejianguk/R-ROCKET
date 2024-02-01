@@ -28,7 +28,7 @@ class GHT_FILTERS_PRFS_IO (params: GHT_FILTERS_PRFS_Params) extends Bundle {
   val ght_ft_is_rvc_in                          = Input(Vec(params.core_width, UInt(1.W)))
 
   val ght_ft_inst_index                         = Output(UInt(8.W))
-  val packet_out                                = Output(UInt((params.packet_size).W))
+  val packet_out                                = Output(UInt((2*params.packet_size).W))
 
   val ght_stall                                 = Input(Bool())
   val core_hang_up                              = Output(UInt(1.W))
@@ -66,8 +66,8 @@ trait HasGHT_FILTERS_PRFS_IO extends BaseModule {
 //==========================================================
 class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with HasGHT_FILTERS_PRFS_IO
 {
-  val packet                                    = WireInit(0.U(params.packet_size.W))
-  val inst_type                                 = WireInit(0.U(8.W))
+  val packet                                    = WireInit(0.U((params.packet_size*2).W))
+  val inst_type                                 = WireInit(0.U((8*2).W))
   val buffer_width                              = 8 + params.packet_size
 
 
@@ -118,12 +118,12 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   val buffer_full                               = WireInit(VecInit(Seq.fill(params.core_width)(false.B)))
   val buffer_deq_data                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U(buffer_width.W))))
   val buffer_deq_valid                          = WireInit(false.B)
-  val is_valid_packet                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U(1.W))))
+  val is_valid_packet                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U(13.W))))
 
   val new_packet                                = WireInit(VecInit(Seq.fill(params.core_width)(0.U(1.W))))
   val doPush                                    = WireInit(0.U(1.W))
   val buffer_inst_type                          = WireInit(VecInit(Seq.fill(params.core_width)(0.U(8.W))))
-  val buffer_packet                             = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
+  val bp                                        = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
   val doPull                                    = WireInit(0.U(1.W))
   
   
@@ -148,21 +148,21 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     buffer_full(i)                             := u_buffer(i).io.full
     buffer_deq_data(i)                         := u_buffer(i).io.deq_bits
     buffer_inst_type(i)                        := u_buffer(i).io.deq_bits(buffer_width - 1, params.packet_size)
-    buffer_packet(i)                           := u_buffer(i).io.deq_bits(params.packet_size - 1, 0)
+    bp(i)                                      := u_buffer(i).io.deq_bits(params.packet_size - 1, 0)
     u_buffer(i).io.deq_ready                   := buffer_deq_valid
-    is_valid_packet(i)                         := ((buffer_deq_data(i) =/= 0.U) & (buffer_inst_type(i) =/= 0.U))
+    is_valid_packet(i)                         := Mux(buffer_inst_type(i) =/= 0.U, 1.U, 0.U)
   }
-
-  val t_buffer                                  = RegInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
-  val t_inst_type                               = RegInit(VecInit(Seq.fill(params.core_width)(0.U(8.W))))
+  
+  val t_buffer                                  = RegInit(VecInit(Seq.fill(params.core_width)(0.U((params.packet_size*2).W))))
+  val t_inst_type                               = RegInit(VecInit(Seq.fill(params.core_width)(0.U((8*2).W))))
   val is_valid_t_buffer                         = WireInit(VecInit(Seq.fill(params.core_width)(0.U(1.W))))
-  val t_buffer_inst_type                        = WireInit(VecInit(Seq.fill(params.core_width)(0.U(8.W))))
-  val t_buffer_packet                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U(params.packet_size.W))))
+  val t_buffer_inst_type                        = WireInit(VecInit(Seq.fill(params.core_width)(0.U((8*2).W))))
+  val t_buffer_packet                           = WireInit(VecInit(Seq.fill(params.core_width)(0.U((params.packet_size*2).W))))
 
   val load_t_buffer                             = WireInit(0.U(1.W))
   /* FIreGuard only
   for (i <- 0 to params.core_width - 1) {
-    t_buffer(i)                                := Mux(load_t_buffer === 1.U, buffer_packet(i), t_buffer(i))
+    t_buffer(i)                                := Mux(load_t_buffer === 1.U, bp(i), t_buffer(i))
     t_inst_type(i)                             := Mux(load_t_buffer === 1.U, buffer_inst_type(i), t_inst_type(i))
     is_valid_t_buffer(i)                       := (t_buffer(i) =/= 0.U)
     t_buffer_inst_type(i)                      := t_inst_type(i)
@@ -171,9 +171,10 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   buffer_deq_valid                             := load_t_buffer
   */ 
 
+  /*
   for (i <- 0 to params.core_width - 1) {
     t_buffer(i)                                := MuxCase(t_buffer(i),
-                                                      Array(((load_t_buffer === 1.U) && (io.rsu_merging === 0.U)) -> buffer_packet(i),
+                                                      Array(((load_t_buffer === 1.U) && (io.rsu_merging === 0.U)) -> bp(i),
                                                             ((load_t_buffer === 1.U) && (io.rsu_merging === 1.U)) -> io.core_r_arfs(i)
                                                           )
                                                           )
@@ -187,7 +188,69 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     is_valid_t_buffer(i)                       := (t_buffer(i) =/= 0.U)
     t_buffer_inst_type(i)                      := t_inst_type(i)
     t_buffer_packet(i)                         := t_buffer(i)
+  }*/
+
+  val zeros_144bits                             = WireInit(0.U(144.W))
+  t_buffer(0)                                  := MuxCase(t_buffer(0),
+                                                      Array(((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_144bits, bp(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U)) -> Cat(bp(1), bp(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U)) -> Cat(bp(2), bp(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(bp(3), bp(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_144bits, bp(1)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U)) -> Cat(bp(2), bp(1)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(bp(3), bp(1)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_144bits, bp(2)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(bp(3), bp(2)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_144bits, bp(3)),
+                                                          )
+                                                          )
+
+  t_buffer(1)                                  := MuxCase(t_buffer(1),
+                                                     Array(((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(bp(3), bp(2)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_144bits, bp(2)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_144bits, bp(3)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_144bits, bp(3)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_144bits, bp(3)),
+                                                            (load_t_buffer.asBool) ->  0.U
+                                                          )
+                                                          )
+  
+  t_buffer(2)                                  := 0.U
+  t_buffer(3)                                  := 0.U
+
+  val zeros_8bits                               = WireInit(0.U(8.W))
+  t_inst_type(0)                               := MuxCase(t_inst_type(0),
+                                                      Array(((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_8bits, buffer_inst_type(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U)) -> Cat(buffer_inst_type(1), buffer_inst_type(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U)) -> Cat(buffer_inst_type(2), buffer_inst_type(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(buffer_inst_type(3), buffer_inst_type(0)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_8bits, buffer_inst_type(1)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U)) -> Cat(buffer_inst_type(2), buffer_inst_type(1)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(buffer_inst_type(3), buffer_inst_type(1)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_8bits, buffer_inst_type(2)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(buffer_inst_type(3), buffer_inst_type(2)),
+                                                             ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_8bits, buffer_inst_type(3))
+                                                            )
+                                                            )
+
+  t_inst_type(1)                               := MuxCase(t_inst_type(1),
+                                                     Array(((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(buffer_inst_type(3), buffer_inst_type(2)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) === 0.U)) -> Cat(zeros_8bits, buffer_inst_type(2)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) === 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_8bits, buffer_inst_type(3)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) =/= 0.U) && (buffer_inst_type(1) === 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_8bits, buffer_inst_type(3)),
+                                                            ((load_t_buffer.asBool) && (buffer_inst_type(0) === 0.U) && (buffer_inst_type(1) =/= 0.U) && (buffer_inst_type(2) =/= 0.U) && (buffer_inst_type(3) =/= 0.U)) -> Cat(zeros_8bits, buffer_inst_type(3)),
+                                                            ((load_t_buffer.asBool)) -> 0.U
+                                                          )
+                                                          )
+  t_inst_type(2)                               := 0.U
+  t_inst_type(3)                               := 0.U
+
+  for (i <- 0 to params.core_width - 1) {
+    is_valid_t_buffer(i)                       := (t_inst_type(i) =/= 0.U)
+    t_buffer_inst_type(i)                      := t_inst_type(i)
+    t_buffer_packet(i)                         := t_buffer(i)
   }
+
 
   buffer_deq_valid                             := MuxCase(0.U,
                                                       Array(((load_t_buffer === 1.U) && (io.rsu_merging === 0.U)) -> 1.U,
@@ -241,7 +304,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   val load_t_buffer_fourth_state                = WireInit(0.U(1.W))
 
   switch (fsm_state) {
-    is (fsm_reset){
+    is (fsm_reset){ // 0x0b000
       packet                                   := 0.U
       inst_type                                := 0.U
       load_t_buffer                            := Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), 1.U, 0.U)
@@ -249,7 +312,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     }
 
     is (fsm_send_first){
-      when (io.ght_stall) {
+      when (io.ght_stall) { // 0x0b001
         packet                                 := 0.U
         inst_type                              := 0.U
         fsm_state                              := fsm_send_first
@@ -263,7 +326,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     }
 
     is (fsm_send_second){
-      when (io.ght_stall) {
+      when (io.ght_stall) { // 0x0b010
         packet                                 := 0.U
         inst_type                              := 0.U
         fsm_state                              := fsm_send_second
@@ -277,7 +340,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     }
 
     is (fsm_send_third){
-      when (io.ght_stall) {
+      when (io.ght_stall) { // 0x0b011
         packet                                 := 0.U
         inst_type                              := 0.U
         fsm_state                              := fsm_send_third
@@ -291,7 +354,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
     }
 
     is (fsm_send_fourth){
-      when (io.ght_stall) {
+      when (io.ght_stall) { // 0x0b100
         packet                                 := 0.U
         inst_type                              := 0.U
         fsm_state                              := fsm_send_fourth
@@ -310,11 +373,7 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   // There are some work is required to make them generic
   fsm_reset_nxt_state                          := MuxCase(fsm_reset, 
                                                     Array((io.rsu_merging === 1.U) -> fsm_send_first,
-                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) =/= 0.U))  -> fsm_send_first,
-                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) =/= 0.U))  -> fsm_send_second,
-                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) =/= 0.U))  -> fsm_send_third,
-                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) === 0.U) && (is_valid_packet(3) =/= 0.U))  -> fsm_send_fourth,
-                                                          ((io.rsu_merging === 0.U) && (is_valid_packet(0) === 0.U) && (is_valid_packet(1) === 0.U) && (is_valid_packet(2) === 0.U) && (is_valid_packet(3) === 0.U))  -> fsm_reset
+                                                          (is_valid_packet.reduce(_|_) === 1.U)  -> fsm_send_first
                                                           )
                                                           )
 
@@ -347,8 +406,8 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
   load_t_buffer_fourth_state                  := Mux((!buffer_empty(0) || (io.rsu_merging === 1.U)), 1.U, 0.U)
 
   // Outputs
-  io.ght_ft_inst_index                        := inst_type
-  io.packet_out                               := Cat(inst_type, packet(135,0)) // Added inst_type for checker cores
+  io.ght_ft_inst_index                        := inst_type(7,0)
+  io.packet_out                               := Cat(inst_type(15,8), packet(280,145), inst_type(7,0), packet(135,0)) // Added inst_type for checker cores
   io.core_hang_up                             := core_hang_up | filter_stall
   io.ght_buffer_status                        := Cat(buffer_full(params.core_width-1), buffer_empty.reduce(_&_))
   io.ght_filters_empty                        := buffer_empty.reduce(_&_)
@@ -359,5 +418,4 @@ class GHT_FILTERS_PRFS (val params: GHT_FILTERS_PRFS_Params) extends Module with
                                                           ((load_t_buffer === 1.U) && (io.rsu_merging === 1.U)) -> 1.U
                                                          )
                                                          )
-
 }

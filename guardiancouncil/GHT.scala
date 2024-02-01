@@ -22,7 +22,7 @@ case class GHTParams(
 // I/Os
 //==========================================================
 class GHT_IO (params: GHTParams) extends Bundle {
-  val ght_packet_out                            = Output(UInt((params.packet_size).W))
+  val ght_packet_out                            = Output(UInt((2*params.packet_size).W))
   val ght_packet_dest                           = Output(UInt(params.totalnumber_of_checkers.W))
   val ght_mask_in                               = Input(UInt(1.W))
   val ght_cfg_in                                = Input(UInt(32.W))
@@ -67,7 +67,7 @@ class GHT_IO (params: GHTParams) extends Bundle {
   val if_correct_process                        = Input(UInt(1.W))
   
   val inst_index_arfs                           = Input(UInt(8.W))
-  val arfs_dest                                 = Output(UInt(8.W))
+  val arfs_dest                                 = Output(UInt(params.totalnumber_of_checkers.W))
 }
 
 trait HasGHT_IO extends BaseModule {
@@ -128,7 +128,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
 
   // execution path
   // using registers to break the critical path
-  val ght_pack                                   = WireInit(0.U((params.packet_size).W))
+  val ght_pack                                   = WireInit(0.U((2*params.packet_size).W))
   val inst_index                                 = WireInit(0.U(8.W))
   ght_pack                                      := u_ght_filters.io.packet_out
   inst_index                                    := u_ght_filters.io.ght_ft_inst_index

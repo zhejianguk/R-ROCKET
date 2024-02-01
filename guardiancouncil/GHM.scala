@@ -19,10 +19,10 @@ case class GHMParams(
 
 
 class GHMIO(params: GHMParams) extends Bundle {
-  val ghm_packet_in                              = Input(UInt(params.width_GH_packet.W))
+  val ghm_packet_in                              = Input(UInt((params.width_GH_packet*2).W))
   val ghm_packet_dest                            = Input(UInt((params.number_of_little_cores*2).W))
   val ghm_status_in                              = Input(UInt(32.W))
-  val ghm_packet_outs                            = Output(Vec(params.number_of_little_cores, UInt(params.width_GH_packet.W)))
+  val ghm_packet_outs                            = Output(Vec(params.number_of_little_cores, UInt((params.width_GH_packet*2).W)))
   val ghm_status_outs                            = Output(Vec(params.number_of_little_cores, UInt(32.W)))
   val ghe_event_in                               = Input(Vec(params.number_of_little_cores, UInt(6.W)))
   val clear_ic_status                            = Input(Vec(params.number_of_little_cores, UInt(1.W)))
@@ -56,27 +56,27 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
 
     // Adding a register to avoid the critical path
     val packet_dest                                = WireInit(0.U((params.number_of_little_cores).W))
-    val packet_out_wires                           = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(params.width_GH_packet.W))))
+    val packet_out_wires                           = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U((params.width_GH_packet*2).W))))
     val cdc_busy                                   = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(1.W))))
     val cdc_empty                                  = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(1.W))))
 
-    val u_cdc                                      = Seq.fill(params.number_of_little_cores) {Module(new GH_CDCH2LFIFO_HandShake(GH_CDCH2L_Params (0, params.width_GH_packet, 12)))}
-    val core_r_arfs                                = RegInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(144.W))))
+    val u_cdc                                      = Seq.fill(params.number_of_little_cores) {Module(new GH_CDCH2LFIFO_HandShake(GH_CDCH2L_Params (0, (params.width_GH_packet*2), 32)))}
+    val core_r_arfs                                = RegInit(0.U(144.W))
     val arfs_dest                                  = RegInit(0.U((params.number_of_little_cores).W))
 
     packet_dest                                   := io.ghm_packet_dest(params.number_of_little_cores-1, 0)
     arfs_dest                                     := io.ghm_packet_dest(params.number_of_little_cores+3, params.number_of_little_cores)
+    core_r_arfs                                   := io.core_r_arfs_in
 
     for (i <- 0 to params.number_of_little_cores - 1) {
-      core_r_arfs(i)                              := io.core_r_arfs_in
-      io.core_r_arfs_c(i)                         := Mux(arfs_dest(i) === 1.U, core_r_arfs(i), 0.U)
+      io.core_r_arfs_c(i)                         := Mux(arfs_dest(i) === 1.U, core_r_arfs, 0.U)
     }
 
     // CDC
     for (i <- 0 to params.number_of_little_cores - 1) {      
       u_cdc(i).io.cdc_data_in                     := io.ghm_packet_in
       u_cdc(i).io.cdc_push                        := packet_dest(i)
-      packet_out_wires(i)                         := Cat(u_cdc(i).io.cdc_flag, u_cdc(i).io.cdc_data_out(GH_GlobalParams.GH_WIDITH_PACKETS-2, 0))
+      packet_out_wires(i)                         := Cat(u_cdc(i).io.cdc_flag, u_cdc(i).io.cdc_data_out(287, 144), u_cdc(i).io.cdc_data_out(143, 0))
       u_cdc(i).io.cdc_pull                        := io.ghe_event_in(i)(4)
       u_cdc(i).io.cdc_slave_busy                  := io.ghe_event_in(i)(0)
       u_cdc(i).io.cdc_ack                         := io.ghe_event_in(i)(5)
@@ -172,7 +172,7 @@ object GHMCore {
     val bigcore_hang_SRNode                        = BundleBridgeSource[UInt](Some(() => UInt(1.W)))
     val bigcore_comp_SRNode                        = BundleBridgeSource[UInt](Some(() => UInt(3.W)))
     val debug_bp_SRNode                            = BundleBridgeSource[UInt](Some(() => UInt(2.W)))
-    val ghm_ght_packet_in_SKNode                   = BundleBridgeSink[UInt](Some(() => UInt((params.width_GH_packet).W)))
+    val ghm_ght_packet_in_SKNode                   = BundleBridgeSink[UInt](Some(() => UInt((2*params.width_GH_packet).W)))
     val core_r_arfs_in_SKNode                      = BundleBridgeSink[UInt](Some(() => UInt(144.W)))
 
     val ic_counter_SKNode                          = BundleBridgeSink[UInt](Some(() => UInt((16*GH_GlobalParams.GH_NUM_CORES).W)))
