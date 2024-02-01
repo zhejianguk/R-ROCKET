@@ -126,13 +126,15 @@ class R_ELU (val params: R_ELUParams) extends Module with HasR_ELUIO {
   
 
   // Faking ELU data 
-  io.elu_data                := Mux(err_ld | err_st, err_log, 0.U)
+  io.elu_data                := 0.U
   io.elu_status              := 0.U
 
+  /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when ((err_ld | err_st) && (io.core_trace.asBool)) {
         printf(midas.targetutils.SynthesizePrintf("ELU: [req_addr = %x], [resp_addr = %x], [req_data = %x], [resp_data = %x]. \n", 
         req_addr_reg, io.lsl_resp_addr, Mux(err_ld, useless_ones, req_data_wire), resp_data_wire))
     }
   }
+  */
 }

@@ -820,11 +820,12 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
     val wdata = recode(load_wb_data, load_wb_typeTag)
     regfile(load_wb_tag) := wdata
     assert(consistent(wdata))
+    /*
     if (GH_GlobalParams.GH_DEBUG == 1) {
     when (io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("FLT-LD: f%d p%d 0x%x\n", load_wb_tag, load_wb_tag + 32, load_wb_data))
     }
-    }
+    }*/
     frfWriteBundle(0).wrdst := load_wb_tag
     frfWriteBundle(0).wrenf := true.B
     frfWriteBundle(0).wrdata := ieee(wdata)
@@ -988,11 +989,13 @@ class FPU(cfg: FPUParams)(implicit p: Parameters) extends FPUModule()(p) {
   when ((!wbInfo(0).cp && wen(0) && !r_cannot_wb) || divSqrt_wen) {
     assert(consistent(wdata))
     regfile(waddr) := wdata
+    /*
     if (GH_GlobalParams.GH_DEBUG == 1) {
     when (io.core_trace.asBool) {
       printf(midas.targetutils.SynthesizePrintf("FLT-WB: f%d p%d 0x%x\n", waddr, waddr + 32, ieee(wdata)))
     }
     }
+    */
     frfWriteBundle(1).wrdst := waddr
     frfWriteBundle(1).wrenf := true.B
     frfWriteBundle(1).wrdata := ieee(wdata)

@@ -1194,6 +1194,9 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   
   // Simply tied-off the signals sent to D$, when the core is in the checker mode.
   // It might be fine only mask the io.dmem.req.valid, but for safety -- let us amsk all dmem.req signals.
+  val checker_mode_1cycle_delay = Reg(UInt())
+  checker_mode_1cycle_delay := checker_mode
+
   io.dmem.req.valid     := Mux(checker_mode === 1.U, 0.U, ex_reg_valid && ex_ctrl.mem)
   val ex_dcache_tag      = Mux(checker_mode === 1.U, 0.U, Cat(ex_waddr, ex_ctrl.fp))
   require(coreParams.dcacheReqTagBits >= ex_dcache_tag.getWidth)
@@ -1207,8 +1210,26 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   io.dmem.req.bits.dprv := Mux(checker_mode === 1.U, 0.U, Mux(ex_reg_hls, csr.io.hstatus.spvp, csr.io.status.dprv))
   io.dmem.req.bits.dv := Mux(checker_mode === 1.U, 0.U, ex_reg_hls || csr.io.status.dv)
   io.dmem.s1_data.data := Mux(checker_mode === 1.U, 0.U, (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2)))
-  io.dmem.s1_kill := Mux(checker_mode === 1.U, 0.U, killm_common || mem_ldst_xcpt || fpu_kill_mem)
+  io.dmem.s1_kill := Mux((checker_mode === 1.U) && (checker_mode_1cycle_delay === 1.U), 0.U, killm_common || mem_ldst_xcpt || fpu_kill_mem)
   io.dmem.s2_kill := false
+
+  if (GH_GlobalParams.GH_DEBUG == 1) {
+    val mem_valid = Reg(UInt())
+    val mem_addr = Reg(UInt())
+    val mem_data = Reg(UInt())
+    val mem_cmd = Reg(UInt())
+    val mem_s1_kill = Wire(UInt())
+    mem_valid := Mux(checker_mode === 1.U, 0.U, ex_reg_valid && ex_ctrl.mem)
+    mem_addr := Mux(checker_mode === 1.U, 0.U, encodeVirtualAddress(ex_rs(0), alu.io.adder_out))
+    mem_data := Mux(checker_mode === 1.U, 0.U, (if (fLen == 0) mem_reg_rs2 else Mux(mem_ctrl.fp, Fill((xLen max fLen) / fLen, io.fpu.store_data), mem_reg_rs2)))
+    mem_cmd := Mux(checker_mode === 1.U, 0.U, ex_ctrl.mem_cmd)
+    mem_s1_kill := Mux(checker_mode === 1.U, 0.U, killm_common || mem_ldst_xcpt || fpu_kill_mem)
+
+    when (io.core_trace.asBool && (mem_valid === 1.U) && (mem_s1_kill =/= 1.U)){
+      printf(midas.targetutils.SynthesizePrintf("C%d: %d-%x, addr-%x, data-%x, ",
+      io.hartid, checker_mode, mem_cmd, mem_addr, mem_data))
+    }
+  }
 
   lsl_req_valid             := Mux(checker_mode === 1.U, (mem_reg_valid && mem_ctrl.mem), 0.U)
   val mem_dcache_tag         = Mux(checker_mode === 1.U, Cat(mem_waddr, mem_ctrl.fp), 0.U)
@@ -1285,13 +1306,17 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   if (GH_GlobalParams.GH_DEBUG == 1) {
     when (csr.io.trace(0).valid && io.core_trace.asBool) {
-      printf(midas.targetutils.SynthesizePrintf("C%d: [%d]pc=[%x]W[r%d=%x][%d];slc=[%x]rf_slc=[%x]\n",
-          io.hartid, coreMonitorBundle.valid,
+      printf(midas.targetutils.SynthesizePrintf("C%d: %d [%d] pc=[%x] W[r%d=%x][%d] R[r%d=%x] R[r%d=%x] inst=[%x] DASM(%x) sl_counter=[%x]\n",
+          io.hartid, coreMonitorBundle.timer, coreMonitorBundle.valid,
           coreMonitorBundle.pc,
           Mux(wb_ctrl.wxd || wb_ctrl.wfd, coreMonitorBundle.wrdst, 0.U),
           Mux(coreMonitorBundle.wrenx, coreMonitorBundle.wrdata, 0.U),
           coreMonitorBundle.wrenx,
-          (icsl.io.debug_sl_counter + 1.U), io.ic_counter))
+          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0src, 0.U),
+          Mux(wb_ctrl.rxs1 || wb_ctrl.rfs1, coreMonitorBundle.rd0val, 0.U),
+          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1src, 0.U),
+          Mux(wb_ctrl.rxs2 || wb_ctrl.rfs2, coreMonitorBundle.rd1val, 0.U),
+          coreMonitorBundle.inst, coreMonitorBundle.inst, (icsl.io.debug_sl_counter + 1.U)))
     }
   } else {
     /*
