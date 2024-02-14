@@ -897,7 +897,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl.io.num_valid_insts_in_pipeline := icsl_if_valid + icsl_ex_valid + icsl_mem_valid + icsl_wb_valid
   icsl.io.debug_perf_reset := io.debug_perf_ctrl(0)
   icsl.io.debug_perf_sel := io.debug_perf_ctrl(4,1)
-  icsl.io.debug_starting_CPS := rsu.io.starting_CPS
+  icsl.io.debug_starting_CPS := rsu_slave.io.starting_CPS
 
   // Instantiate LSL
   lsl.io.m_st_valid := Mux((io.packet_lsl(138, 136) === 2.U), 1.U, 0.U)
