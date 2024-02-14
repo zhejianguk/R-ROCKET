@@ -164,7 +164,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   // val ptype_rcu = Mux((packet_index(2) === 1.U) && (s_or_r === 1.U), 1.U, 0.U)
   val ptype_lsl = Mux((s_or_r.asBool && (packet_index(2,0) =/= 7.U) && (packet_index(2,0) =/= 0.U)), 1.U, 0.U)
   val core_trace = Wire(0.U(2.W))
-  val debug_perf_ctrl = Wire(0.U(4.W))
+  val debug_perf_ctrl = Wire(0.U(5.W))
   val record_and_store = Wire(0.U(2.W))
 
   cdc_flag := Mux((ptype_fg.asBool || ptype_lsl.asBool) && (packet_in_superset(288) =/= cdc_flag), packet_in_superset(288), cdc_flag)

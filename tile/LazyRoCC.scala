@@ -96,7 +96,7 @@ class RoCCCoreIO(implicit p: Parameters) extends CoreBundle()(p) {
   val gtimer_reset_out = Output(UInt(1.W))
   val core_trace_out = Output(UInt(2.W))
   val record_and_store_out = Output(UInt(2.W))
-  val debug_perf_ctrl = Output(UInt(4.W))
+  val debug_perf_ctrl = Output(UInt(5.W))
   //===== GuardianCouncil Function: End   ====//
 }
 
@@ -542,8 +542,8 @@ class RoccCommandRouter(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val arf_copy_in = Input(UInt(1.W))
     val core_trace_out = Output(UInt(2.W))
     val core_trace_in = Input(UInt(2.W))
-    val debug_perf_ctrl_out = Output(UInt(4.W))
-    val debug_perf_ctrl_in = Input(UInt(4.W))
+    val debug_perf_ctrl_out = Output(UInt(5.W))
+    val debug_perf_ctrl_in = Input(UInt(5.W))
     val record_and_store_out = Output(UInt(2.W))
     val record_and_store_in = Input(UInt(2.W))
     val record_pc_out = Output(UInt(1.W))
@@ -679,8 +679,8 @@ class RoccCommandRouterBoom(opcodes: Seq[OpcodeSet])(implicit p: Parameters)
     val rsu_status_in = Input(UInt(2.W))
     val elu_data_in = Input(UInt(GH_GlobalParams.GH_WIDITH_PERF.W))
 
-    val debug_perf_ctrl_out = Output(UInt(4.W))
-    val debug_perf_ctrl_in = Input(UInt(4.W))
+    val debug_perf_ctrl_out = Output(UInt(5.W))
+    val debug_perf_ctrl_in = Input(UInt(5.W))
     //===== GuardianCouncil Function: End   ====//
   }
 

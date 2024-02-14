@@ -230,6 +230,7 @@ trait HasGHnodes extends InstantiatesTiles { this: BaseSubsystem =>
   val tile_ght_packet_out_EPNode                 = BundleBridgeEphemeralNode[UInt]()
   val tile_core_r_arfs_EPNode                    = BundleBridgeEphemeralNode[UInt]()
   val tile_ic_counter_out_EPNode                 = BundleBridgeEphemeralNode[UInt]()
+  val debug_maincore_status_out_EPNode           = BundleBridgeEphemeralNode[UInt]()
   val tile_ght_packet_dest_EPNode                = BundleBridgeEphemeralNode[UInt]()
   val tile_ght_status_out_EPNode                 = BundleBridgeEphemeralNode[UInt]()
 
@@ -433,6 +434,7 @@ trait CanAttachTile {
     // GHT connections
     if (tileParams.hartId == 0) {
       context.tile_ic_counter_out_EPNode  := domain.tile.ic_counter_SRNode
+      context.debug_maincore_status_out_EPNode := domain.tile.debug_maincore_status_SRNode
       context.tile_ght_packet_out_EPNode  := domain.tile.ght_packet_out_SRNode
       context.tile_core_r_arfs_EPNode     := domain.tile.core_r_arfs_SRNode
       context.tile_ghm_agg_core_id_EPNode := domain.tile.ghm_agg_core_id_out_SRNode
@@ -447,6 +449,7 @@ trait CanAttachTile {
       println("#### Jessica #### Connecting GHT **Nodes** on the sub-system, HartID:", tileParams.hartId, "...!!")
     } else {
       val useless_bigcore_ic_counter_SRNode= BundleBridgeSink[UInt](Some(() => UInt((16*GH_GlobalParams.GH_NUM_CORES).W)))
+      val useless_debug_maincore_status_SRNode= BundleBridgeSink[UInt](Some(() => UInt((4.W))))
       val useless_bigcore_hang_SRNode      = BundleBridgeSource[UInt](Some(() => UInt(1.W)))
       val useless_bigcore_comp_SRNode      = BundleBridgeSource[UInt](Some(() => UInt(3.W)))
       val useless_debug_bp_SRNode          = BundleBridgeSource[UInt](Some(() => UInt(2.W)))
@@ -459,6 +462,7 @@ trait CanAttachTile {
       val useless_debug_gcounter_SKNode    = BundleBridgeSource[UInt](Some(() => UInt(64.W)))
 
       useless_bigcore_ic_counter_SRNode   := domain.tile.ic_counter_SRNode
+      useless_debug_maincore_status_SRNode:= domain.tile.debug_maincore_status_SRNode
       useless_packet_SKNode               := domain.tile.ght_packet_out_SRNode
       useless_core_r_arfs_SKNode          := domain.tile.core_r_arfs_SRNode
       useless_agg_core_id_SKNode          := domain.tile.ghm_agg_core_id_out_SRNode

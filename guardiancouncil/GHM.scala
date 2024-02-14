@@ -31,7 +31,8 @@ class GHMIO(params: GHMParams) extends Bundle {
   val bigcore_comp                               = Output(UInt(3.W))
   val debug_bp                                   = Output(UInt(2.W))
   val ic_counter                                 = Input(UInt((16*GH_GlobalParams.GH_NUM_CORES).W))
-  val icsl_counter                               = Output(Vec(params.number_of_little_cores, UInt(16.W)))
+  val debug_maincore_status                      = Input(UInt(4.W))
+  val icsl_counter                               = Output(Vec(params.number_of_little_cores, UInt(20.W)))
   val ghe_revent_in                              = Input(Vec(params.number_of_little_cores, UInt(1.W)))
   val icsl_na                                    = Output(UInt((GH_GlobalParams.GH_NUM_CORES).W))
 
@@ -60,7 +61,7 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
     val cdc_busy                                   = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(1.W))))
     val cdc_empty                                  = WireInit(VecInit(Seq.fill(params.number_of_little_cores)(0.U(1.W))))
 
-    val u_cdc                                      = Seq.fill(params.number_of_little_cores) {Module(new GH_CDCH2LFIFO_HandShake(GH_CDCH2L_Params (0, (params.width_GH_packet*2), 32)))}
+    val u_cdc                                      = Seq.fill(params.number_of_little_cores) {Module(new GH_CDCH2LFIFO_HandShake(GH_CDCH2L_Params (0, (params.width_GH_packet*2), 24)))}
     val core_r_arfs                                = RegInit(0.U(144.W))
     val arfs_dest                                  = RegInit(0.U((params.number_of_little_cores).W))
 
@@ -153,7 +154,7 @@ class GHM (val params: GHMParams)(implicit p: Parameters) extends LazyModule
     io.debug_bp                                  := Cat(warning, debug_backpressure_checkers) // [1]: CDC; [0]: Checker
 
     for (i <- 0 to params.number_of_little_cores - 1) {
-      io.icsl_counter(i)                         := io.ic_counter((i+1)*16+15, (i+1)*16)
+      io.icsl_counter(i)                         := Cat(io.debug_maincore_status, io.ic_counter((i+1)*16+15, (i+1)*16))
     }
     io.icsl_na                                   := Cat(io.ghe_revent_in.reverse.reduce(Cat(_,_)), zero)
   }
@@ -176,6 +177,7 @@ object GHMCore {
     val core_r_arfs_in_SKNode                      = BundleBridgeSink[UInt](Some(() => UInt(144.W)))
 
     val ic_counter_SKNode                          = BundleBridgeSink[UInt](Some(() => UInt((16*GH_GlobalParams.GH_NUM_CORES).W)))
+    val debug_maincore_status_SKNode               = BundleBridgeSink[UInt](Some(() => UInt(4.W)))
     val ghm_ght_packet_dest_SKNode                 = BundleBridgeSink[UInt](Some(() => UInt(32.W)))
 
     val ghm_ght_status_in_SKNode                   = BundleBridgeSink[UInt](Some(() => UInt(32.W)))
@@ -196,6 +198,7 @@ object GHMCore {
     core_r_arfs_in_SKNode                         := subsystem.tile_core_r_arfs_EPNode
     ghm_ght_packet_in_SKNode                      := subsystem.tile_ght_packet_out_EPNode
     ic_counter_SKNode                             := subsystem.tile_ic_counter_out_EPNode
+    debug_maincore_status_SKNode                  := subsystem.debug_maincore_status_out_EPNode
     ghm_ght_packet_dest_SKNode                    := subsystem.tile_ght_packet_dest_EPNode
     ghm_ght_status_in_SKNode                      := subsystem.tile_ght_status_out_EPNode
 
@@ -256,6 +259,7 @@ object GHMCore {
       ghm.module.io.ghm_status_in                 := ghm_ght_status_in_SKNode.bundle
       ghm.module.io.if_agg_free                   := if_agg_free_SKNode.bundle 
       ghm.module.io.ic_counter                    := ic_counter_SKNode.bundle
+      ghm.module.io.debug_maincore_status         := debug_maincore_status_SKNode.bundle
 
       for (i <- 0 to number_of_ghes-1) {
         if (i == 0) { // The big core

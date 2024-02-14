@@ -143,7 +143,7 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   val scala_ptr_csr           = RegInit(0.U(1.W))
   val scala_num_reqs_csr      = RegInit(0.U(2.W))
 
-  val u_channel_csr           = Seq.fill(2) {Module(new GH_FIFO(FIFOParams (params.xLen, 8)))}
+  val u_channel_csr           = Seq.fill(2) {Module(new GH_FIFO(FIFOParams (params.xLen, 11)))}
   
   val csr_enq_data            = RegInit(0.U(fifowidth.W))
   val csr_channel_enq_valid   = WireInit(false.B)

@@ -40,6 +40,7 @@ class R_ICIO(params: R_ICParams) extends Bundle {
   val debug_perf_reset                           = Input(UInt((1.W)))
   val debug_perf_sel                             = Input(UInt(3.W))
   val debug_perf_val                             = Output(UInt(64.W))
+  val debug_maincore_status                      = Output(UInt(4.W))
 }
 
 trait HasR_ICIO extends BaseModule {
@@ -265,8 +266,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   for (i <- 0 to params.totalnumber_of_cores - 1){
     clear_ic_status(i)                          := io.clear_ic_status(i)
   }
-
-  /* Debug Perf
   var nocore_available                           = WireInit(1.U(1.W))
   for (i <- 1 to params.totalnumber_of_cores - 1){
     nocore_available                             = nocore_available & ic_status(i)
@@ -302,6 +301,8 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
                                                    Mux(io.debug_perf_sel === 5.U, debug_perf_SchState_Allbusy, 
                                                    Mux(io.debug_perf_sel === 6.U, debug_perf_SchState_OT, 0.U)))))))
 
-  */
-  io.debug_perf_val                             := 0.U
+  io.debug_maincore_status                      := Mux(!io.if_correct_process.asBool, 3.U,
+                                                   Mux(fsm_state === fsm_sch, 1.U,
+                                                   Mux(fsm_state === fsm_check, 2.U, 0.U)))
+  // io.debug_perf_val                             := 0.U
 }

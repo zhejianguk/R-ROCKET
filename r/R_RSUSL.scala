@@ -43,6 +43,8 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val record_context = Input(UInt(1.W))
   val store_from_checker = Input(UInt(1.W)) // 0: from main; 1: from checker.
   val core_id = Input(UInt(4.W)) // 0: from main; 1: from checker.
+  
+  val starting_CPS = Output(UInt(4.W))
 }
 
 trait HasR_RSUSLIO extends BaseModule {
@@ -75,6 +77,7 @@ class R_RSUSL(val params: R_RSUSLParams) extends Module with HasR_RSUSLIO {
   packet_arfs                                    := Mux(if_RSU_packet === 1.U, io.arfs_merge(63,0), 0.U)
   packet_farfs                                   := Mux(if_RSU_packet === 1.U, io.arfs_merge(127,64), 0.U)
   packet_index                                   := Mux(if_RSU_packet === 1.U, io.arfs_index, 0.U)
+  io.starting_CPS                                := if_RSU_packet.asBool && (packet_index === 0.U)
 
   /* Storing the checker's current states */
   val recording_context                           = Reg(Bool())

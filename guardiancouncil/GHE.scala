@@ -246,9 +246,9 @@ class GHEImp(outer: GHE)(implicit p: Parameters) extends LazyRoCCModuleImp(outer
     }
     io.record_and_store_out    := Cat(doRecord, store_from_checker)
 
-    val debug_perf_ctrl         = RegInit(1.U(4.W))
+    val debug_perf_ctrl         = RegInit(1.U(5.W))
     when (doPerfCtrl) {
-      debug_perf_ctrl          := rs1_val(3,0)
+      debug_perf_ctrl          := rs1_val(4,0)
     }
     io.debug_perf_ctrl         := debug_perf_ctrl
 }

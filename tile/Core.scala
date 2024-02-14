@@ -160,7 +160,7 @@ trait HasCoreIO extends HasTileParameters {
     //===== GuardianCouncil Function: Start ====//
     val arfs_if_CPS = UInt(1.W).asInput
     val record_pc = UInt(1.W).asInput
-    val ic_counter = UInt(16.W).asInput
+    val ic_counter = UInt(20.W).asInput
     val clear_ic_status = UInt(1.W).asOutput
     val pc = UInt(vaddrBitsExtended.W).asOutput
     val inst = UInt(32.W).asOutput
@@ -187,7 +187,7 @@ trait HasCoreIO extends HasTileParameters {
     val icsl_status = UInt(2.W).asOutput
     val core_trace = UInt(1.W).asInput
     val record_and_store = UInt(2.W).asInput
-    val debug_perf_ctrl = UInt(4.W).asInput
+    val debug_perf_ctrl = UInt(5.W).asInput
     val lsl_highwatermark = UInt(1.W).asOutput
     //===== GuardianCouncil Function: End ====//
   }

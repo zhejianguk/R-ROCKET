@@ -826,7 +826,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   //===== GuardianCouncil Function: Start ====//
   /* R Features */
   val rsu_slave = Module(new R_RSUSL(R_RSUSLParams(xLen, 32)))
-  val lsl = Module(new R_LSL(R_LSLParams(450, xLen)))
+  val lsl = Module(new R_LSL(R_LSLParams(255, xLen)))
   val icsl = Module(new R_ICSL(R_ICSLParams(16)))
   val arfs_shadow = Reg(Vec(32, UInt(xLen.W)))
 
@@ -868,7 +868,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   r_exception_record := Mux(csr.io.r_exception.asBool, 1.U, Mux(csr.io.trace(0).valid && !csr.io.trace(0).exception && r_exception_record.asBool, 0.U, r_exception_record))
 
 
-  icsl.io.ic_counter := io.ic_counter
+  icsl.io.ic_counter := io.ic_counter(15,0)
+  icsl.io.main_core_status := io.ic_counter(19,16)
   icsl.io.icsl_run := arf_paste_reg & (~io.record_and_store(0))
   icsl.io.new_commit := csr.io.trace(0).valid && !csr.io.trace(0).exception
   icsl.io.if_correct_process := io.if_correct_process
@@ -895,7 +896,7 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl_wb_valid := Cat(zeros_3bits, wb_reg_valid.asUInt)
   icsl.io.num_valid_insts_in_pipeline := icsl_if_valid + icsl_ex_valid + icsl_mem_valid + icsl_wb_valid
   icsl.io.debug_perf_reset := io.debug_perf_ctrl(0)
-  icsl.io.debug_perf_sel := io.debug_perf_ctrl(3,1)
+  icsl.io.debug_perf_sel := io.debug_perf_ctrl(4,1)
 
   // Instantiate LSL
   lsl.io.m_st_valid := Mux((io.packet_lsl(138, 136) === 2.U), 1.U, 0.U)
