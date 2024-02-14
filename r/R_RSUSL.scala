@@ -44,7 +44,7 @@ class R_RSUSLIO(params: R_RSUSLParams) extends Bundle {
   val store_from_checker = Input(UInt(1.W)) // 0: from main; 1: from checker.
   val core_id = Input(UInt(4.W)) // 0: from main; 1: from checker.
   
-  val starting_CPS = Output(UInt(4.W))
+  val starting_CPS = Output(UInt(1.W))
 }
 
 trait HasR_RSUSLIO extends BaseModule {
