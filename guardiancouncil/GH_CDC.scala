@@ -3,6 +3,7 @@ package freechips.rocketchip.guardiancouncil
 import chisel3._
 import chisel3.util._
 import chisel3.experimental.{BaseModule}
+import freechips.rocketchip.guardiancouncil._
 
 //==========================================================
 // Parameters
@@ -148,6 +149,7 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     */
     
     // To Low_Freq:
+    if (GH_GlobalParams.IF_THERE_IS_CDC) {
     val cdc_data                                 = WireInit(0.U(params.data_width.W))
     val cdc_flag_reg                             = RegInit(1.U(1.W))
     val cdc_ack_reg                              = RegInit(1.U(1.W))
@@ -160,6 +162,20 @@ class GH_CDCH2LFIFO_HandShake (val params: GH_CDCH2L_Params) extends Module with
     io.cdc_data_out                             := cdc_data
     io.cdc_busy                                 := cdc_channel.io.status_threeslots
     io.cdc_empty                                := cdc_channel_empty & (cdc_data === 0.U)
+    }
+
+    if (!GH_GlobalParams.IF_THERE_IS_CDC) {
+      val cdc_data                               = WireInit(0.U(params.data_width.W))
+      val cdc_flag_reg                           = RegInit(1.U(1.W))
+      val cdc_ack_reg                            = RegInit(1.U(1.W))
+      cdc_data                                  := Mux(!io.cdc_slave_busy.asBool && !cdc_channel_empty, cdc_channel_deq_data, 0.U)
+      cdc_flag_reg                              := Mux(!io.cdc_slave_busy.asBool && !cdc_channel_empty, cdc_flag_reg+1.U, cdc_flag_reg)
+      cdc_channel_deq_ready                     := Mux(!io.cdc_slave_busy.asBool && !cdc_channel_empty, true.B, false.B)
+      io.cdc_flag                               := cdc_flag_reg
+      io.cdc_data_out                           := cdc_data
+      io.cdc_busy                               := cdc_channel.io.status_threeslots
+      io.cdc_empty                              := cdc_channel_empty & (cdc_data === 0.U)
+    }
 
     /*
     if (GH_GlobalParams.GH_DEBUG == 1) {

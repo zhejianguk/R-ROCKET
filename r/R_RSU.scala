@@ -80,18 +80,33 @@ class R_RSU(val params: R_RSUParams) extends Module with HasR_RSUIO {
   }
   */
 
-  val merge_cdc_counter                           = RegInit(0.U(1.W))
-  when ((doMerge === 1.U) && (merging === 0.U)){
-    merging                                      := 1.U
-    merge_counter                                := 0.U
-    merge_cdc_counter                            := 0.U
-  } .elsewhen (merging === 1.U) {
-    merging                                      := Mux((merge_counter === 32.U) && (merge_cdc_counter === 1.U), 0.U, 1.U)
-    merge_counter                                := Mux(merge_cdc_counter === 1.U, Mux((merge_counter === 32.U), 0.U, merge_counter + 1.U), merge_counter)    
-    merge_cdc_counter                            := merge_cdc_counter + 1.U
-  } .otherwise {
-    merging                                      := merging
-    merge_counter                                := merge_counter
+  if (GH_GlobalParams.IF_THERE_IS_CDC){
+    val merge_cdc_counter                           = RegInit(0.U(1.W))
+    when ((doMerge === 1.U) && (merging === 0.U)){
+      merging                                      := 1.U
+      merge_counter                                := 0.U
+      merge_cdc_counter                            := 0.U
+    } .elsewhen (merging === 1.U) {
+      merging                                      := Mux((merge_counter === 32.U) && (merge_cdc_counter === 1.U), 0.U, 1.U)
+      merge_counter                                := Mux(merge_cdc_counter === 1.U, Mux((merge_counter === 32.U), 0.U, merge_counter + 1.U), merge_counter)    
+      merge_cdc_counter                            := merge_cdc_counter + 1.U
+    } .otherwise {
+      merging                                      := merging
+      merge_counter                                := merge_counter
+    }
+  }
+
+  if (!GH_GlobalParams.IF_THERE_IS_CDC){
+    when ((doMerge === 1.U) && (merging === 0.U)){
+      merging                                      := 1.U
+      merge_counter                                := 0.U
+    } .elsewhen (merging.asBool) {
+      merging                                      := Mux((merge_counter === 32.U), 0.U, 1.U)
+      merge_counter                                := Mux((merge_counter === 32.U), 0.U, merge_counter + 1.U)
+    } .otherwise {
+      merging                                      := merging
+      merge_counter                                := merge_counter
+    }
   }
 
 
