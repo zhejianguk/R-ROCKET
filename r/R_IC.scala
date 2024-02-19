@@ -41,6 +41,7 @@ class R_ICIO(params: R_ICParams) extends Bundle {
   val debug_perf_sel                             = Input(UInt(3.W))
   val debug_perf_val                             = Output(UInt(64.W))
   val debug_maincore_status                      = Output(UInt(4.W))
+  val shared_CP_CFG                              = Output(UInt(13.W))
 }
 
 trait HasR_ICIO extends BaseModule {
@@ -65,7 +66,7 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
 
   // FPS scheduler
   val sch_result                                = WireInit(0.U(5.W))
-  val u_sch_fp                                  = Module (new GHT_SCH_FP(GHT_SCH_Params (params.totalnumber_of_cores-1)))
+  val u_sch_fp                                  = Module (new GHT_SCH_ANYAVILIABLE(GHT_SCH_Params (params.totalnumber_of_cores-1)))
   u_sch_fp.io.core_s                           := 1.U
   u_sch_fp.io.core_e                           := io.num_of_checker
   u_sch_fp.io.inst_c                           := 1.U // Holding the scheduling results
@@ -94,7 +95,6 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
   val ic_exit_isax_buffer                       = RegInit(0.U(1.W))
   val end                                       = RegInit(0.U(1.W))
   ic_exit_isax_buffer                          := Mux(fsm_state === fsm_reset, 0.U, Mux(io.ic_exit_isax.asBool && fsm_state =/= fsm_check, 1.U, ic_exit_isax_buffer))
-
 
   switch (fsm_state) {
     is (fsm_reset){ // 000
@@ -305,4 +305,17 @@ class R_IC (val params: R_ICParams) extends Module with HasR_ICIO {
                                                    Mux(fsm_state === fsm_sch, 1.U,
                                                    Mux(fsm_state === fsm_check, 2.U, 0.U)))
   // io.debug_perf_val                             := 0.U
+
+  val one                                        = WireInit(1.U(1.W))
+  val one_fourbits                               = WireInit(1.U(4.W))
+  val seven_threebits                            = WireInit(7.U(3.W))
+  val core_bitmap                                = WireInit(0.U(4.W))
+  val cp_bitmap                                  = WireInit(0.U(8.W))
+  
+
+  core_bitmap                                   := (one_fourbits << (crnt_target - 1.U)) | (one_fourbits << (sch_result - 1.U))
+  cp_bitmap                                     := Cat(sch_result, seven_threebits)
+  
+
+  io.shared_CP_CFG                              := Mux(((fsm_state === fsm_sch) && !ic_status(sch_result).asBool && io.if_correct_process.asBool && (ctrl === 0.U)), Cat(one, cp_bitmap, core_bitmap), 0.U)
 }

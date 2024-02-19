@@ -133,6 +133,34 @@ class GHT_SCH_FP (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
 }
 
 
+class GHT_SCH_ANYAVILIABLE (val params: GHT_SCH_Params) extends Module with HasGHT_SCH_IO
+{
+  var nocore_available                           = WireInit(1.U(1.W))
+  val out_of_range                               = WireInit(false.B)
+  val change_dest                                = WireInit(false.B)
+  val nxt_dest                                   = WireInit(0.U(4.W))
+  val current_dest                               = RegInit(0.U(4.W))
+
+
+  for (i <- 0 to params.totalnumber_of_checkers - 1){
+    nocore_available                             = nocore_available & io.core_na(i)
+  }
+  out_of_range                                  := (current_dest < io.core_s) || (current_dest > io.core_e)
+  change_dest                                   := (((io.core_na(current_dest-1.U) === 1.U) && !nocore_available.asBool) || out_of_range)
+  nxt_dest                                      := MuxCase(0.U, 
+                                                    Array((out_of_range) -> io.core_s,
+                                                          nocore_available.asBool -> current_dest,
+                                                          !io.core_na(0).asBool -> 1.U,
+                                                          !io.core_na(1).asBool -> 2.U,
+                                                          !io.core_na(2).asBool -> 3.U,
+                                                          !io.core_na(3).asBool -> 4.U
+                                                         ))
+
+  current_dest                                 := Mux((io.rst_sch === 1.U), io.core_s, Mux(change_dest, nxt_dest, current_dest))
+  io.sch_dest                                  := Mux((io.rst_sch === 1.U), io.core_s, Mux(change_dest, nxt_dest, current_dest))
+  io.core_d                                    := 0.U
+  io.sch_hang                                  := 0.U
+}
 
 
 //==========================================================

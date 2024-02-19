@@ -68,6 +68,7 @@ class GHT_IO (params: GHTParams) extends Bundle {
   
   val inst_index_arfs                           = Input(UInt(8.W))
   val arfs_dest                                 = Output(UInt(params.totalnumber_of_checkers.W))
+  val shared_CP_CFG                             = Input(UInt(13.W))
 }
 
 trait HasGHT_IO extends BaseModule {
@@ -180,7 +181,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
                                                         this.io.ght_cfg_valid, 0.U)
   u_ght_mapper.io.ght_mp_cfg_in                 := ght_cfg_in_mp_filter
   u_ght_mapper.io.ght_mp_cfg_valid              := ght_cfg_valid_mp_filter
-  
+  u_ght_mapper.io.shared_CP_CFG                 := io.shared_CP_CFG
   // execution path
   val inst_c                                     = WireInit(VecInit(Seq.fill(params.totalnumber_of_ses)(0.U(1.W))))
   val inst_arfs                                  = WireInit(VecInit(Seq.fill(params.totalnumber_of_ses)(0.U(1.W))))
@@ -194,6 +195,7 @@ class GHT (val params: GHTParams) extends Module with HasGHT_IO
   // configuration path
   u_ght_mapper_arfs.io.ght_mp_cfg_in            := ght_cfg_in_mp_filter
   u_ght_mapper_arfs.io.ght_mp_cfg_valid         := ght_cfg_valid_mp_filter
+  u_ght_mapper_arfs.io.shared_CP_CFG            := io.shared_CP_CFG
   
   // execution path
   u_ght_mapper_arfs.io.inst_index               := io.inst_index_arfs
