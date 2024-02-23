@@ -35,7 +35,8 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val debug_perf_sel                             = Input(UInt(4.W))
   val debug_perf_val                             = Output(UInt(64.W))   
   val debug_starting_CPS                         = Input(UInt(1.W))
-  val main_core_status                           = Input(UInt(4.W))                 
+  val main_core_status                           = Input(UInt(4.W))
+  val checker_core_status                        = Output(UInt(4.W))
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -181,6 +182,9 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
                                                    Mux(io.debug_perf_sel === 9.U, debug_perf_insts, 
                                                    Mux(io.debug_perf_sel === 11.U, debug_perf_nonchecking_MSched,
                                                    Mux(io.debug_perf_sel === 10.U, debug_perf_CPStrans, 0.U)))))))))))
+  
+  io.checker_core_status                        := Mux(!io.if_correct_process.asBool, 3.U, 
+                                                   Mux(fsm_state === fsm_checking, 1.U, 0.U))
  
   // io.debug_perf_val                             := 0.U
 }
