@@ -162,13 +162,14 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   debug_perf_postchecking                       := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_postchecking), debug_perf_postchecking + 1.U, debug_perf_postchecking))
   debug_perf_otherthread                        := Mux(io.debug_perf_reset.asBool, 0.U, Mux(((fsm_state === fsm_checking) || (fsm_state === fsm_postchecking)) && (!io.if_correct_process.asBool),  debug_perf_otherthread + 1.U, debug_perf_otherthread))
   debug_perf_nonchecking                        := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking), debug_perf_nonchecking + 1.U, debug_perf_nonchecking))
+  /*
   debug_perf_nonchecking_OtherThreads           := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking) && (!io.if_correct_process.asBool), debug_perf_nonchecking_OtherThreads + 1.U, debug_perf_nonchecking_OtherThreads))
   debug_perf_nonchecking_MOtherThreads          := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking) && (io.if_correct_process.asBool) && (io.main_core_status === 3.U), debug_perf_nonchecking_MOtherThreads + 1.U, debug_perf_nonchecking_MOtherThreads))
   debug_perf_nonchecking_MCheck                 := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking) && (io.if_correct_process.asBool) && (io.main_core_status === 2.U), debug_perf_nonchecking_MCheck + 1.U, debug_perf_nonchecking_MCheck))
-  debug_perf_insts                              := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_checking) && io.new_commit.asBool, debug_perf_insts + 1.U, debug_perf_insts))
+  debug_perf_insts                              := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_checking) && io.new_commit.asBool, debug_perf_insts + 1.U, debug_perf_insts))*/
   debug_perf_CPStrans_ifGo                      := Mux(io.debug_starting_CPS.asBool, 1.U, Mux((fsm_state === fsm_checking), 0.U, debug_perf_CPStrans_ifGo))
   debug_perf_CPStrans                           := Mux(io.debug_perf_reset.asBool, 0.U, Mux(debug_perf_CPStrans_ifGo.asBool, debug_perf_CPStrans + 1.U, debug_perf_CPStrans))
-  debug_perf_nonchecking_MSched                 := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking) && (io.if_correct_process.asBool) && (io.main_core_status === 1.U), debug_perf_nonchecking_MSched + 1.U, debug_perf_nonchecking_MSched))
+  // debug_perf_nonchecking_MSched                 := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking) && (io.if_correct_process.asBool) && (io.main_core_status === 1.U), debug_perf_nonchecking_MSched + 1.U, debug_perf_nonchecking_MSched))
 
 
   io.debug_perf_val                             := Mux(io.debug_perf_sel === 7.U, debug_perf_howmany_checkpoints, 

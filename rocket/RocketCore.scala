@@ -896,19 +896,23 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   icsl_wb_valid := Cat(zeros_3bits, wb_reg_valid.asUInt)
   icsl.io.num_valid_insts_in_pipeline := icsl_if_valid + icsl_ex_valid + icsl_mem_valid + icsl_wb_valid
   
-  /*
   icsl.io.debug_perf_reset := io.debug_perf_ctrl(0)
   icsl.io.debug_perf_sel := io.debug_perf_ctrl(4,1)
   val debug_perf_reset = Wire(0.U(1.W))
   val debug_perf_sel = Wire(0.U(4.W))
   val debug_perf_val = Wire(0.U(64.W))
-  */
+  
+
 
   icsl.io.debug_perf_reset := io.debug_perf_ctrl(0)
   icsl.io.debug_perf_sel := io.debug_perf_ctrl(4,1)
+  
 
+  /*
   debug_perf_reset := io.debug_perf_ctrl(0)
   debug_perf_sel := io.debug_perf_ctrl(4,1)
+  */
+  
   icsl.io.debug_starting_CPS := rsu_slave.io.starting_CPS
 
   // Instantiate LSL
@@ -965,8 +969,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   // io.elu_data := Mux(io.elu_sel.asBool, rsu_slave.io.elu_cp_data, elu.io.elu_data)
   // Faking ELU data
-  // io.elu_data := Mux(elu.io.elu_data =/= 0, elu.io.elu_data, icsl.io.debug_perf_val)
-  io.elu_data := debug_perf_val
+  // io.elu_data := debug_perf_val
+  io.elu_data := icsl.io.debug_perf_val
 
   io.elu_status := Cat(rsu_slave.io.elu_status, elu.io.elu_status)
   elu.io.elu_deq := Mux(!io.elu_sel.asBool && io.elu_deq.asBool, 1.U, 0.U)
@@ -1150,19 +1154,19 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   val debug_perf_blocking_ST                      = Reg(0.U(64.W))
 
 
-  /*
   val checker_blocked                             = (icsl.io.checker_core_status === 1.U) && ctrl_stalld
+  val fpu_or_div_not_busy                         = !(id_ctrl.fp && id_stall_fpu) && !(id_ctrl.div && (!(div.io.req.ready || (div.io.resp.valid && !wb_wxd)) || div.io.req.valid))
   debug_perf_blocking_CP                         := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && rsu_slave.io.core_hang_up.asBool, debug_perf_blocking_CP + 1.U, debug_perf_blocking_CP))
-  debug_perf_blocking_id_ex_h                    := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_ex_hazard, debug_perf_blocking_id_ex_h + 1.U, debug_perf_blocking_id_ex_h))
-  debug_perf_blocking_id_mem_h                   := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_mem_hazard, debug_perf_blocking_id_mem_h + 1.U, debug_perf_blocking_id_mem_h))
-  debug_perf_blocking_id_wb_h                    := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_wb_hazard, debug_perf_blocking_id_wb_h + 1.U, debug_perf_blocking_id_wb_h))
-  debug_perf_blocking_id_sb_h                    := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_sboard_hazard, debug_perf_blocking_id_sb_h + 1.U, debug_perf_blocking_id_sb_h))
-  debug_perf_blocking_CSR_S                      := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && csr.io.singleStep && (ex_reg_valid || mem_reg_valid || wb_reg_valid), debug_perf_blocking_CSR_S + 1.U, debug_perf_blocking_CSR_S))
+  debug_perf_blocking_id_ex_h                    := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_ex_hazard && fpu_or_div_not_busy, debug_perf_blocking_id_ex_h + 1.U, debug_perf_blocking_id_ex_h))
+  debug_perf_blocking_id_mem_h                   := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_mem_hazard && fpu_or_div_not_busy, debug_perf_blocking_id_mem_h + 1.U, debug_perf_blocking_id_mem_h))
+  debug_perf_blocking_id_wb_h                    := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_wb_hazard && fpu_or_div_not_busy, debug_perf_blocking_id_wb_h + 1.U, debug_perf_blocking_id_wb_h))
+  debug_perf_blocking_id_sb_h                    := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_sboard_hazard && fpu_or_div_not_busy, debug_perf_blocking_id_sb_h + 1.U, debug_perf_blocking_id_sb_h))
+  debug_perf_blocking_CSR_S                      := 0.U
   debug_perf_blocking_FP                         := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_ctrl.fp && id_stall_fpu, debug_perf_blocking_FP + 1.U, debug_perf_blocking_FP))
-  debug_perf_blocking_MEM                        := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_ctrl.mem && dcache_blocked, debug_perf_blocking_MEM + 1.U, debug_perf_blocking_MEM))
+  debug_perf_blocking_MEM                        := 0.U
   debug_perf_blocking_DIV                        := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_ctrl.div && (!(div.io.req.ready || (div.io.resp.valid && !wb_wxd)) || div.io.req.valid), debug_perf_blocking_DIV + 1.U, debug_perf_blocking_DIV))
   debug_perf_blocking_FENCE                      := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && id_do_fence, debug_perf_blocking_FENCE + 1.U, debug_perf_blocking_FENCE))
-  debug_perf_blocking_ST                         := Mux(debug_perf_reset.asBool, 0.U, Mux(checker_blocked && csr.io.csr_stall, debug_perf_blocking_ST + 1.U, debug_perf_blocking_ST))
+  debug_perf_blocking_ST                         := 0.U
 
   debug_perf_val                                := Mux(debug_perf_sel === 7.U, debug_perf_blocking_CP, 
                                                    Mux(debug_perf_sel === 1.U, debug_perf_blocking_id_ex_h,
@@ -1175,7 +1179,6 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
                                                    Mux(debug_perf_sel === 9.U, debug_perf_blocking_DIV, 
                                                    Mux(debug_perf_sel === 11.U, debug_perf_blocking_FENCE,
                                                    Mux(debug_perf_sel === 10.U, debug_perf_blocking_ST, 0.U)))))))))))
-  */
 
   /*
   if (GH_GlobalParams.GH_DEBUG == 1) {
