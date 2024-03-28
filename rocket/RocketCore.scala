@@ -914,6 +914,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   */
   
   icsl.io.debug_starting_CPS := rsu_slave.io.starting_CPS
+  icsl.io.st_deq := lsl.io.st_deq
+  icsl.io.ld_deq := lsl.io.ld_deq
 
   // Instantiate LSL
   lsl.io.m_st_valid := Mux((io.packet_lsl(138, 136) === 2.U), 1.U, 0.U)

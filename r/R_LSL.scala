@@ -51,6 +51,8 @@ class R_LSLIO(params: R_LSLParams) extends Bundle {
   val if_empty = Output(UInt(1.W))
   val lsl_highwatermark = Output(UInt(1.W))
   // val resp_replay_csr = Output(UInt(1.W))
+  val st_deq = Output(UInt(1.W))
+  val ld_deq = Output(UInt(1.W))
 }
 
 trait HasR_RLSLIO extends BaseModule {
@@ -138,6 +140,9 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   channel_deq_ready          := io.req_valid & !if_lsl_empty & !io.req_kill & (scala_ptr_core === 0.U)
   channel_deq_ready1         := io.req_valid & !if_lsl_empty & !io.req_kill & (scala_ptr_core === 1.U)
 
+  io.ld_deq                  := Mux(channel_deq_ready || channel_deq_ready1, Mux(io.req_cmd === 0x01.U, 1.U, 0.U), 0.U)
+  io.st_deq                  := Mux(channel_deq_ready || channel_deq_ready1, Mux(io.req_cmd === 0x02.U, 1.U, 0.U), 0.U)
+
 
   val has_data_csr            = RegInit(false.B)
   val scala_ptr_csr           = RegInit(0.U(1.W))
@@ -160,6 +165,7 @@ class R_LSL(val params: R_LSLParams) extends Module with HasR_RLSLIO {
   val csr_channel_deq_data1   = WireInit(0.U(params.xLen.W))
   val csr_channel_empty1      = WireInit(true.B)
   val csr_channel_nearfull1   = WireInit(0.U(1.W))
+
 
   has_data_csr               := io.m_csr_valid | io.m_csr_valid1
   scala_ptr_csr              := Mux(has_data_csr && (scala_num_reqs_csr === 1.U), scala_ptr_csr + 1.U, scala_ptr_csr)

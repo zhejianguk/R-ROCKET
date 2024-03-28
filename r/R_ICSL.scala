@@ -37,6 +37,8 @@ class R_ICSLIO(params: R_ICSLParams) extends Bundle {
   val debug_starting_CPS                         = Input(UInt(1.W))
   val main_core_status                           = Input(UInt(4.W))
   val checker_core_status                        = Output(UInt(4.W))
+  val st_deq                                     = Input(UInt(1.W))
+  val ld_deq                                     = Input(UInt(1.W))
 }
 
 trait HasR_ICSLIO extends BaseModule {
@@ -172,6 +174,25 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
   // debug_perf_nonchecking_MSched                 := Mux(io.debug_perf_reset.asBool, 0.U, Mux((fsm_state === fsm_nonchecking) && (io.if_correct_process.asBool) && (io.main_core_status === 1.U), debug_perf_nonchecking_MSched + 1.U, debug_perf_nonchecking_MSched))
 
 
+  val debug_perf_num_st                          = RegInit(0.U(64.W))
+  val debug_perf_num_ld                          = RegInit(0.U(64.W))
+  val debug_L_timer_worest                       = RegInit(0.U(64.W))
+
+  debug_perf_num_st                             := Mux(io.debug_perf_reset.asBool, 0.U, debug_perf_num_st + io.st_deq)
+  debug_perf_num_ld                             := Mux(io.debug_perf_reset.asBool, 0.U, debug_perf_num_ld + io.ld_deq)
+
+  val u_channel                                  = Module(new GH_MemFIFO(FIFOParams (32, 50)))
+  val debug_L_timer                              = RegInit(0.U(64.W))
+  debug_L_timer                                 := Mux(fsm_state === fsm_nonchecking, 0.U, Mux(fsm_state === fsm_checking, debug_L_timer + 1.U, debug_L_timer))
+  u_channel.io.enq_valid                        := Mux((fsm_state === fsm_postchecking) && (fsm_state_delay === fsm_checking) && ((debug_perf_howmany_checkpoints & 0x1FF.U) === 0x00.U), true.B, false.B)
+  u_channel.io.enq_bits                         := debug_L_timer
+  val debug_perf_sel_delay                       = RegInit(0.U(4.W))
+  debug_perf_sel_delay                          := io.debug_perf_sel
+  u_channel.io.deq_ready                        := (io.debug_perf_sel === 14.U) && (debug_perf_sel_delay === 15.U)
+
+  debug_L_timer_worest                          := Mux(io.debug_perf_reset.asBool, 0.U, Mux(debug_L_timer > debug_L_timer_worest, debug_L_timer, debug_L_timer_worest))
+
+
   io.debug_perf_val                             := Mux(io.debug_perf_sel === 7.U, debug_perf_howmany_checkpoints, 
                                                    Mux(io.debug_perf_sel === 1.U, debug_perf_checking,
                                                    Mux(io.debug_perf_sel === 2.U, debug_perf_postchecking,
@@ -181,8 +202,13 @@ class R_ICSL (val params: R_ICSLParams) extends Module with HasR_ICSLIO {
                                                    Mux(io.debug_perf_sel === 6.U, debug_perf_nonchecking_MOtherThreads,
                                                    Mux(io.debug_perf_sel === 8.U, debug_perf_nonchecking_MCheck,
                                                    Mux(io.debug_perf_sel === 9.U, debug_perf_insts, 
-                                                   Mux(io.debug_perf_sel === 11.U, debug_perf_nonchecking_MSched,
-                                                   Mux(io.debug_perf_sel === 10.U, debug_perf_CPStrans, 0.U)))))))))))
+                                                   Mux(io.debug_perf_sel === 11.U, debug_L_timer_worest,
+                                                   Mux(io.debug_perf_sel === 10.U, debug_perf_CPStrans,
+                                                   Mux(io.debug_perf_sel === 12.U, debug_perf_num_st,
+                                                   Mux(io.debug_perf_sel === 13.U, debug_perf_num_ld,
+                                                   Mux(io.debug_perf_sel === 14.U, u_channel.io.deq_bits, 
+                                                   Mux(io.debug_perf_sel === 15.U, u_channel.io.deq_bits, 0.U
+                                                   )))))))))))))))
   
   io.checker_core_status                        := Mux(!io.if_correct_process.asBool, 3.U, 
                                                    Mux(fsm_state === fsm_checking, 1.U, 0.U))
